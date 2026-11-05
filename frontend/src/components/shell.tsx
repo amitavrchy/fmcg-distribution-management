@@ -128,7 +128,7 @@ export function Shell({
         />
       )}
       <aside className={`sidebar ${open ? "is-open" : ""}`}>
-        <Link href="/" className="brand">
+        <Link href="/control" className="brand">
           <span className="brand-symbol">d</span>deshflow
           <span className="brand-dot">.</span>
         </Link>
@@ -161,7 +161,7 @@ export function Shell({
                 .map(([id, text, Icon]) => (
                   <Link
                     key={id}
-                    href={id === "control" ? "/" : `/${id}`}
+                    href={`/${id}`}
                     onClick={() => setOpen(false)}
                     aria-current={section === id ? "page" : undefined}
                     className={`nav-item ${section === id ? "active" : ""}`}

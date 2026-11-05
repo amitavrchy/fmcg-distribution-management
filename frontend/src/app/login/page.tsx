@@ -54,7 +54,7 @@ export default function Login() {
                   email: f.get("email"),
                   password: f.get("password"),
                 });
-                location.href = "/";
+                location.href = "/control";
               } catch (e) {
                 setError(e instanceof Error ? e.message : "Unable to sign in");
               } finally {
