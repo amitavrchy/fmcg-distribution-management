@@ -44,7 +44,7 @@ export function Warehouses() {
           {
             label: "Inventory cost value",
             value: money(data.summary.inventoryValueMinor),
-            detail: "Includes available and held physical stock",
+            detail: "Costed stock, reservations and in-transit assets",
           },
           {
             label: "Warehouses",
@@ -65,6 +65,13 @@ export function Warehouses() {
           },
         ]}
       />
+      {data.batches.some((b) => b.qty > 0 && b.unitCostMinor === 0) && (
+        <p className="callout">
+          Historical opening lots without purchase-cost records carry zero cost.
+          The valuation includes entered, costed inventory; use batch details to
+          identify uncosted opening units.
+        </p>
+      )}
       <div className="enterprise-toolbar">
         <Tabs
           value={tab}
@@ -219,7 +226,7 @@ export function Warehouses() {
                 <div className="warehouse-totals">
                   <div>
                     <strong>{lots.reduce((s, b) => s + b.qty, 0)}</strong>
-                    <span>units on hand</span>
+                    <span>unallocated units</span>
                   </div>
                   <div>
                     <strong>{lots.length}</strong>

@@ -303,10 +303,23 @@ export class EnterpriseRead {
       products: productAnalytics,
       expiry,
       summary: {
-        inventoryValueMinor: batches.reduce(
-          (s, b) => s + b.qty * b.unitCostMinor,
-          0,
-        ),
+        inventoryValueMinor:
+          batches.reduce(
+            (s, b) =>
+              s +
+              b.qty * b.unitCostMinor +
+              b.allocations
+                .filter((a) =>
+                  ["ALLOCATED", "DISPATCHED"].includes(
+                    a.orderLine.order.status,
+                  ),
+                )
+                .reduce((v, a) => v + (a.qty + a.freeQty) * b.unitCostMinor, 0),
+            0,
+          ) +
+          transfers
+            .filter((t) => t.status === "IN_TRANSIT")
+            .reduce((s, t) => s + t.qty * t.batch.unitCostMinor, 0),
         quarantinedUnits: batches
           .filter((b) => b.status !== "AVAILABLE")
           .reduce((s, b) => s + b.qty, 0),

@@ -58,7 +58,13 @@ export class ProcurementService {
     if (new Set(d.lines.map((l) => l.skuId)).size !== d.lines.length)
       throw new BadRequestException("Combine duplicate product lines");
     safeMinor(
-      d.lines.reduce((s, l) => s + l.qty * l.unitCostMinor, 0) + d.freightMinor,
+      d.lines.reduce((s, l) => s + l.qty * l.unitCostMinor, 0) +
+        d.freightMinor +
+        Math.ceil(
+          (d.lines.reduce((s, l) => s + l.qty * l.unitCostMinor, 0) *
+            d.taxBps) /
+            10000,
+        ),
     );
     return this.db.serial(async (tx) => {
       await checkDistributor(tx, u, d.distributorId);

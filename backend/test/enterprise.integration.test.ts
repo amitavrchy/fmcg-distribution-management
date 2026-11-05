@@ -13,6 +13,7 @@ import { ImportService } from "../src/enterprise/import.service";
 import { OrdersService } from "../src/orders.service";
 import { CollectionsService } from "../src/collections.service";
 import { balanced, invoiceDue, JournalLine } from "../src/domain/enterprise";
+import { dhakaDate } from "../src/domain/geo";
 test(
   "enterprise lifecycle: purchasing FEFO dispatch POD returns credits refunds transfers counts and controls",
   { skip: process.env.RUN_INTEGRATION !== "1" },
@@ -104,7 +105,7 @@ test(
         supplierId: supplier.id,
         distributorId: dist.id,
         expectedOn: new Date().toISOString(),
-        freightMinor: 10000,
+        freightMinor: 10001,
         taxBps: 500,
         lines: [{ skuId: sku.id, qty: 20, unitCostMinor: 10000 }],
       });
@@ -153,7 +154,7 @@ test(
       const payable = await db.supplierPayable.findUniqueOrThrow({
         where: { purchaseId: po.id },
       });
-      assert.equal(payable.totalMinor, 220000);
+      assert.equal(payable.totalMinor, 220001);
       await procure.pay(admin, payable.id, {
         clientId: randomUUID(),
         amountMinor: 100000,
@@ -187,6 +188,18 @@ test(
       assert.equal(allocations.length, 1);
       assert.equal(allocations[0].batch.lot, "NEAR");
       assert.equal(allocations[0].qty, 8);
+      const reservedAssets = await new EnterpriseRead(db).snapshot({
+        ...sr,
+        role: "DISTRIBUTOR",
+        distributorId: dist.id,
+      });
+      assert.equal(reservedAssets.summary.inventoryValueMinor, 210000);
+      await assert.rejects(() =>
+        db.stockBatch.update({
+          where: { id: allocations[0].batchId },
+          data: { qty: -1 },
+        }),
+      );
       const vehicle = await field.vehicle(admin, {
         registration: key,
         name: "Test delivery van",
@@ -413,6 +426,26 @@ test(
       assert.equal((await imports.preview(admin, { csv })).ready, 1);
       assert.equal((await imports.apply(admin, { csv })).imported, 1);
       assert.equal((await imports.apply(admin, { csv })).imported, 0);
+      const cash = await db.collection.aggregate({
+        where: { srId: sr.id, method: "CASH" },
+        _sum: { amountMinor: true },
+      });
+      const handover = await finance.handover(sr, {
+        distributorId: dist.id,
+        businessDate: dhakaDate(),
+        declaredMinor: cash._sum.amountMinor || 0,
+        discrepancyReason: "",
+      });
+      await finance.acceptHandover(admin, handover.id);
+      await assert.rejects(() =>
+        payments.create(sr, {
+          clientCollectionId: randomUUID(),
+          outletId: outlet.id,
+          amountMinor: 1,
+          method: "CASH",
+          reference: "",
+        }),
+      );
       const journals = await db.journalEntry.findMany({
         where: { distributorId: dist.id },
       });
