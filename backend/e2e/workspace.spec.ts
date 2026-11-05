@@ -120,6 +120,9 @@ test("offline order queues and reconnect sync removes it exactly once", async ({
     await navigator.serviceWorker.ready;
   });
   await context.setOffline(true);
+  await page.reload();
+  await expect(page).toHaveURL(/\/control$/);
+  await expect(page.locator("main h1")).toHaveText("Control tower");
   await expect(
     page.getByText(
       "You’re offline. Saved records are available and new orders will queue for sync.",

@@ -33,6 +33,8 @@ npm run dev:all
 
 Open **http://127.0.0.1:3000**. API: localhost:4000/api, PostgreSQL: localhost:5438, Redis: localhost:6397. Compose keeps the project name `fmcg-distribution-management`, preserving existing volumes after the file move. Stop infrastructure with `docker compose down` from backend; do not use `--volumes` unless intentionally removing data.
 
+The public landing page lives at `/`: a responsive distribution network hero, keyboard-accessible product preview tabs, workflow, team use cases and expandable FAQs. `/login` signs team members into `/control`; the installed PWA also starts at `/control`. Workspace entry links require a valid session. Product screenshots use sample records, and landing content makes no customer adoption or live payment integration claims.
+
 For manual setup, run `npm ci` in each folder, copy the two environment examples, then run `docker compose up -d`, `npm run db:generate`, `npm run db:migrate`, `npm run db:seed`, `npm run db:seed:advanced` inside backend.
 
 ## Demo access
