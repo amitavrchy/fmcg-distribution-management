@@ -15,4 +15,5 @@ Thumbs.db
 artifacts/
 test-results/
 playwright-report/
-frontend/next-env.d.ts
+.cache/
+tooling/previous-workspace/

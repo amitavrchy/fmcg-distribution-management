@@ -6,7 +6,8 @@ async function signIn(page: Page, email = "admin@fmcg.local") {
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in to workspace" }).click();
-  await expect(page.getByRole("heading", { name: /Good / })).toBeVisible();
+  await expect(page.locator('main h1')).toHaveText('Control tower');
+  await expect(page.getByRole('heading',{name:/One operating picture/})).toBeVisible();
 }
 test("dashboard login and every operational route renders", async ({
   page,
@@ -19,6 +20,7 @@ test("dashboard login and every operational route renders", async ({
     fullPage: true,
   });
   for (const section of [
+    'overview','control','procurement','warehouses','finance','returns','logistics','field','analytics','approvals',
     "orders",
     "deliveries",
     "outlets",
@@ -36,6 +38,7 @@ test("dashboard login and every operational route renders", async ({
     await page.goto(`/${section}`);
     await expect(page.locator("main h1")).toBeVisible();
     await expect(page.locator(".boot")).toHaveCount(0);
+    await expect(page.locator('.enterprise-loading')).toHaveCount(0);
     const undersized = await page.locator("main").evaluate((root) =>
       Array.from(root.querySelectorAll("*"))
         .filter(
@@ -54,7 +57,7 @@ test("create order with scheme preview and inspect lifecycle detail", async ({
   page,
 }) => {
   await signIn(page);
-  await page.getByRole("button", { name: "+ New order", exact: true }).click();
+  await page.getByRole("button", { name: "New order", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog
     .getByLabel("Retail outlet")
@@ -111,7 +114,7 @@ test("offline order queues and reconnect sync removes it exactly once", async ({
       "You’re offline. Saved records are available and new orders will queue for sync.",
     ),
   ).toBeVisible();
-  await page.getByRole("button", { name: "+ New order", exact: true }).click();
+  await page.getByRole("button", { name: "New order", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog
     .getByLabel("Retail outlet")
