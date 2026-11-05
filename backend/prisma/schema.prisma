@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model Region {
+  id String @id @default(cuid())
+  name String @unique
+  areas Area[]
+}
+model Area {
+  id String @id @default(cuid())
+  name String
+  regionId String
+  region Region @relation(fields:[regionId], references:[id])
+  territories Territory[]
+}
+model Territory {
+  id String @id @default(cuid())
+  name String
+  areaId String
+  area Area @relation(fields:[areaId], references:[id])
+  beats Beat[]
+  distributors Distributor[]
+  users User[]
+}
+model Beat {
+  id String @id @default(cuid())
+  name String
+  weekday Int
+  territoryId String
+  territory Territory @relation(fields:[territoryId], references:[id])
+  outlets Outlet[]
+}
+model Distributor {
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  territoryId String
+  territory Territory @relation(fields:[territoryId], references:[id])
+  stock DistributorStock[]
+  orders SecondaryOrder[]
+  users User[]
+}
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  fullName String
+  role String
+  passwordHash String
+  territoryId String?
+  territory Territory? @relation(fields:[territoryId], references:[id])
+  distributorId String?
+  distributor Distributor? @relation(fields:[distributorId], references:[id])
+  orders SecondaryOrder[]
+  collections Collection[]
+  visits JourneyVisit[]
+  targets Target[]
+}
+model Outlet {
+  id String @id @default(cuid())
+  code String
+  name String
+  owner String
+  phone String
+  address String
+  channel String @default("GENERAL")
+  beatId String
+  beat Beat @relation(fields:[beatId], references:[id])
+  lat Float?
+  lng Float?
+  creditLimitMinor Int @default(5000000)
+  active Boolean @default(true)
+  orders SecondaryOrder[]
+  invoices Invoice[]
+  collections Collection[]
+  visits JourneyVisit[]
+  @@unique([beatId,code])
+}
+model Sku {
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  category String
+  unit String @default("pcs")
+  packSize Int @default(1)
+  reorderLevel Int @default(50)
+  active Boolean @default(true)
+  stock DistributorStock[]
+  prices PriceListItem[]
+  lines SecondaryOrderLine[]
+}
+model PriceList {
+  id String @id @default(cuid())
+  name String
+  version Int @unique
+  active Boolean @default(true)
+  items PriceListItem[]
+}
+model PriceListItem {
+  id String @id @default(cuid())
+  priceListId String
+  priceList PriceList @relation(fields:[priceListId], references:[id])
+  skuId String
+  sku Sku @relation(fields:[skuId], references:[id])
+  priceMinor Int
+  @@unique([priceListId,skuId])
+}
+model Scheme {
+  id String @id @default(cuid())
+  name String
+  priority Int @default(100)
+  startsOn DateTime
+  endsOn DateTime
+  active Boolean @default(true)
+  rules Json
+}
+model DistributorStock {
+  id String @id @default(cuid())
+  distributorId String
+  distributor Distributor @relation(fields:[distributorId], references:[id])
+  skuId String
+  sku Sku @relation(fields:[skuId], references:[id])
+  qty Int @default(0)
+  @@unique([distributorId,skuId])
+}
+model StockMovement {
+  id String @id @default(cuid())
+  distributorId String
+  skuId String
+  qty Int
+  kind String
+  reference String
+  createdAt DateTime @default(now())
+  @@index([distributorId,createdAt])
+}
+model SecondaryOrder {
+  id String @id @default(cuid())
+  number String @unique
+  distributorId String
+  distributor Distributor @relation(fields:[distributorId], references:[id])
+  outletId String
+  outlet Outlet @relation(fields:[outletId], references:[id])
+  srId String
+  sr User @relation(fields:[srId], references:[id])
+  status String @default("SUBMITTED")
+  clientOrderId String @unique
+  priceListVersion Int
+  goodsMinor Int
+  discountMinor Int
+  totalMinor Int
+  orderedAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  backorder Boolean @default(false)
+  creditApproved Boolean @default(false)
+  notes String @default("")
+  lines SecondaryOrderLine[]
+  delivery Delivery?
+  claims Claim[]
+  @@index([distributorId,status])
+}
+model SecondaryOrderLine {
+  id String @id @default(cuid())
+  orderId String
+  order SecondaryOrder @relation(fields:[orderId], references:[id],onDelete:Cascade)
+  skuId String
+  sku Sku @relation(fields:[skuId], references:[id])
+  qty Int
+  unitPriceMinor Int
+  freeQty Int @default(0)
+  allocatedQty Int @default(0)
+  allocatedFreeQty Int @default(0)
+}
+model Delivery {
+  id String @id @default(cuid())
+  orderId String @unique
+  order SecondaryOrder @relation(fields:[orderId], references:[id])
+  status String @default("PLANNED")
+  deliveredAt DateTime?
+  invoice Invoice?
+}
+model Invoice {
+  id String @id @default(cuid())
+  number String @unique
+  outletId String
+  outlet Outlet @relation(fields:[outletId], references:[id])
+  deliveryId String @unique
+  delivery Delivery @relation(fields:[deliveryId], references:[id])
+  totalMinor Int
+  paidMinor Int @default(0)
+  status String @default("UNPAID")
+  createdAt DateTime @default(now())
+  allocations CollectionAllocation[]
+}
+model Collection {
+  id String @id @default(cuid())
+  outletId String
+  outlet Outlet @relation(fields:[outletId], references:[id])
+  srId String
+  sr User @relation(fields:[srId], references:[id])
+  amountMinor Int
+  method String
+  status String @default("POSTED")
+  reference String @default("")
+  clientCollectionId String @unique
+  collectedAt DateTime @default(now())
+  allocations CollectionAllocation[]
+}
+model CollectionAllocation {
+  id String @id @default(cuid())
+  collectionId String
+  collection Collection @relation(fields:[collectionId], references:[id])
+  invoiceId String
+  invoice Invoice @relation(fields:[invoiceId], references:[id])
+  amountMinor Int
+  @@unique([collectionId,invoiceId])
+}
+model JourneyVisit {
+  id String @id @default(cuid())
+  srId String
+  sr User @relation(fields:[srId], references:[id])
+  outletId String
+  outlet Outlet @relation(fields:[outletId], references:[id])
+  beatDate String
+  callType String @default("PLANNED")
+  checkInAt DateTime?
+  lat Float?
+  lng Float?
+  anomaly Boolean @default(false)
+  notes String @default("")
+  @@unique([srId,outletId,beatDate])
+}
+model Target {
+  id String @id @default(cuid())
+  srId String
+  sr User @relation(fields:[srId], references:[id])
+  periodYm String
+  targetMinor Int
+  focusSkuJson Json?
+  @@unique([srId,periodYm])
+}
+model IncentiveRun {
+  id String @id @default(cuid())
+  periodYm String @unique
+  status String @default("CALCULATED")
+  results Json
+  createdAt DateTime @default(now())
+}
+model Claim {
+  id String @id @default(cuid())
+  orderId String
+  order SecondaryOrder @relation(fields:[orderId], references:[id])
+  reason String
+  amountMinor Int
+  status String @default("SUBMITTED")
+  createdAt DateTime @default(now())
+}
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String
+  action String
+  entityId String
+  details Json
+  createdAt DateTime @default(now())
+}
