@@ -49,6 +49,13 @@ export class AppController {
   @Get("snapshot") snapshot(@Req() r: Authed) {
     return this.read.snapshot(r.user);
   }
+  @Patch("admin/users/:id") updateUser(
+    @Req() r: Authed,
+    @Param("id") id: string,
+    @Body() b: unknown,
+  ) {
+    return this.change(r.user, this.admin.updateUser(r.user, id, b));
+  }
   @Get("dashboard") dashboard(@Req() r: Authed) {
     return this.read.snapshot(r.user);
   }

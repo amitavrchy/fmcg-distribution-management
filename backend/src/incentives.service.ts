@@ -67,9 +67,19 @@ export class IncentivesService {
           },
           include: { delivery: { include: { invoice: true } }, lines: true },
         });
-        const sales = orders.reduce(
-          (s, o) => s + (o.delivery?.invoice?.totalMinor || 0),
+        const credits = await tx.creditNote.aggregate({
+          where: {
+            request: { order: { srId: t.srId } },
+            createdAt: { gte: from, lt: end },
+          },
+          _sum: { amountMinor: true },
+        });
+        const sales = Math.max(
           0,
+          orders.reduce(
+            (s, o) => s + (o.delivery?.invoice?.totalMinor || 0),
+            0,
+          ) - (credits._sum.amountMinor || 0),
         );
         const productive = await tx.journeyVisit.count({
           where: {

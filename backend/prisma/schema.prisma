@@ -42,6 +42,9 @@ model Distributor {
   stock DistributorStock[]
   orders SecondaryOrder[]
   users User[]
+  warehouses Warehouse[]
+  purchases PurchaseOrder[]
+  trips DeliveryTrip[]
 }
 model User {
   id String @id @default(cuid())
@@ -49,6 +52,8 @@ model User {
   fullName String
   role String
   passwordHash String
+  active Boolean @default(true)
+  sessionVersion Int @default(0)
   territoryId String?
   territory Territory? @relation(fields:[territoryId], references:[id])
   distributorId String?
@@ -76,6 +81,9 @@ model Outlet {
   invoices Invoice[]
   collections Collection[]
   visits JourneyVisit[]
+  segment String @default("STANDARD")
+  paymentTermsDays Int @default(30)
+  tasks FieldTask[]
   @@unique([beatId,code])
 }
 model Sku {
@@ -90,6 +98,10 @@ model Sku {
   stock DistributorStock[]
   prices PriceListItem[]
   lines SecondaryOrderLine[]
+  weightGrams Int @default(500)
+  barcode String? @unique
+  batches StockBatch[]
+  purchaseLines PurchaseOrderLine[]
 }
 model PriceList {
   id String @id @default(cuid())
@@ -159,6 +171,8 @@ model SecondaryOrder {
   lines SecondaryOrderLine[]
   delivery Delivery?
   claims Claim[]
+  returns ReturnRequest[]
+  tripStops TripStop[]
   @@index([distributorId,status])
 }
 model SecondaryOrderLine {
@@ -172,6 +186,8 @@ model SecondaryOrderLine {
   freeQty Int @default(0)
   allocatedQty Int @default(0)
   allocatedFreeQty Int @default(0)
+  batchAllocations BatchAllocation[]
+  returnLines ReturnLine[]
 }
 model Delivery {
   id String @id @default(cuid())
@@ -190,9 +206,318 @@ model Invoice {
   delivery Delivery @relation(fields:[deliveryId], references:[id])
   totalMinor Int
   paidMinor Int @default(0)
+  creditedMinor Int @default(0)
   status String @default("UNPAID")
   createdAt DateTime @default(now())
   allocations CollectionAllocation[]
+}
+model Warehouse {
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  distributorId String
+  distributor Distributor @relation(fields:[distributorId],references:[id])
+  address String @default("")
+  lat Float @default(23.806)
+  lng Float @default(90.368)
+  active Boolean @default(true)
+  batches StockBatch[]
+  counts StockCount[]
+  trips DeliveryTrip[]
+}
+model StockBatch {
+  id String @id @default(cuid())
+  warehouseId String
+  warehouse Warehouse @relation(fields:[warehouseId],references:[id])
+  skuId String
+  sku Sku @relation(fields:[skuId],references:[id])
+  lot String
+  qty Int
+  unitCostMinor Int @default(0)
+  expiresOn DateTime?
+  status String @default("AVAILABLE")
+  originBatchIds String[] @default([])
+  receivedAt DateTime @default(now())
+  allocations BatchAllocation[]
+  transfers StockTransfer[]
+  countLines StockCountLine[]
+  @@unique([warehouseId,skuId,lot])
+  @@index([warehouseId,status,expiresOn])
+}
+model BatchAllocation {
+  id String @id @default(cuid())
+  orderLineId String
+  orderLine SecondaryOrderLine @relation(fields:[orderLineId],references:[id],onDelete:Cascade)
+  batchId String
+  batch StockBatch @relation(fields:[batchId],references:[id])
+  qty Int
+  freeQty Int @default(0)
+  restored Boolean @default(false)
+  @@unique([orderLineId,batchId])
+}
+model Supplier {
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  contact String
+  phone String
+  email String?
+  paymentTermsDays Int @default(30)
+  active Boolean @default(true)
+  purchases PurchaseOrder[]
+}
+model PurchaseOrder {
+  id String @id @default(cuid())
+  number String @unique
+  clientId String @unique
+  supplierId String
+  supplier Supplier @relation(fields:[supplierId],references:[id])
+  distributorId String
+  distributor Distributor @relation(fields:[distributorId],references:[id])
+  status String @default("DRAFT")
+  expectedOn DateTime
+  freightMinor Int @default(0)
+  taxBps Int @default(0)
+  notes String @default("")
+  createdBy String
+  approvedBy String?
+  createdAt DateTime @default(now())
+  lines PurchaseOrderLine[]
+  receipts GoodsReceipt[]
+  payable SupplierPayable?
+}
+model PurchaseOrderLine {
+  id String @id @default(cuid())
+  purchaseId String
+  purchase PurchaseOrder @relation(fields:[purchaseId],references:[id],onDelete:Cascade)
+  skuId String
+  sku Sku @relation(fields:[skuId],references:[id])
+  qty Int
+  receivedQty Int @default(0)
+  unitCostMinor Int
+  receipts GoodsReceiptLine[]
+  @@unique([purchaseId,skuId])
+}
+model GoodsReceipt {
+  id String @id @default(cuid())
+  number String @unique
+  clientId String @unique
+  purchaseId String
+  purchase PurchaseOrder @relation(fields:[purchaseId],references:[id])
+  receivedBy String
+  createdAt DateTime @default(now())
+  lines GoodsReceiptLine[]
+}
+model GoodsReceiptLine {
+  id String @id @default(cuid())
+  receiptId String
+  receipt GoodsReceipt @relation(fields:[receiptId],references:[id],onDelete:Cascade)
+  purchaseLineId String
+  purchaseLine PurchaseOrderLine @relation(fields:[purchaseLineId],references:[id])
+  qty Int
+  batchId String
+  costMinor Int
+}
+model SupplierPayable {
+  id String @id @default(cuid())
+  purchaseId String @unique
+  purchase PurchaseOrder @relation(fields:[purchaseId],references:[id])
+  totalMinor Int
+  paidMinor Int @default(0)
+  dueOn DateTime
+  payments SupplierPayment[]
+}
+model SupplierPayment {
+  id String @id @default(cuid())
+  payableId String
+  payable SupplierPayable @relation(fields:[payableId],references:[id])
+  clientId String @unique
+  amountMinor Int
+  method String
+  reference String
+  createdBy String
+  createdAt DateTime @default(now())
+}
+model StockTransfer {
+  id String @id @default(cuid())
+  number String @unique
+  clientId String @unique
+  batchId String
+  batch StockBatch @relation(fields:[batchId],references:[id])
+  targetWarehouseId String
+  qty Int
+  status String @default("REQUESTED")
+  requestedBy String
+  approvedBy String?
+  receivedBy String?
+  createdAt DateTime @default(now())
+}
+model StockCount {
+  id String @id @default(cuid())
+  warehouseId String
+  warehouse Warehouse @relation(fields:[warehouseId],references:[id])
+  number String @unique
+  status String @default("DRAFT")
+  createdBy String
+  approvedBy String?
+  notes String @default("")
+  createdAt DateTime @default(now())
+  lines StockCountLine[]
+}
+model StockCountLine {
+  id String @id @default(cuid())
+  countId String
+  count StockCount @relation(fields:[countId],references:[id],onDelete:Cascade)
+  batchId String
+  batch StockBatch @relation(fields:[batchId],references:[id])
+  expectedQty Int
+  countedQty Int
+  @@unique([countId,batchId])
+}
+model ReturnRequest {
+  id String @id @default(cuid())
+  number String @unique
+  clientId String @unique
+  orderId String
+  order SecondaryOrder @relation(fields:[orderId],references:[id])
+  status String @default("REQUESTED")
+  reason String
+  createdBy String
+  approvedBy String?
+  receivedBy String?
+  createdAt DateTime @default(now())
+  lines ReturnLine[]
+  credit CreditNote?
+}
+model ReturnLine {
+  id String @id @default(cuid())
+  returnId String
+  request ReturnRequest @relation(fields:[returnId],references:[id],onDelete:Cascade)
+  orderLineId String
+  orderLine SecondaryOrderLine @relation(fields:[orderLineId],references:[id])
+  qty Int
+  freeQty Int @default(0)
+  disposition String
+  @@unique([returnId,orderLineId])
+}
+model CreditNote {
+  id String @id @default(cuid())
+  number String @unique
+  returnId String @unique
+  request ReturnRequest @relation(fields:[returnId],references:[id])
+  amountMinor Int
+  appliedMinor Int
+  refundMinor Int
+  refundPaid Boolean @default(false)
+  refundReference String?
+  createdAt DateTime @default(now())
+}
+model JournalEntry {
+  id String @id @default(cuid())
+  reference String @unique
+  distributorId String
+  description String
+  lines Json
+  createdBy String
+  createdAt DateTime @default(now())
+}
+model Expense {
+  id String @id @default(cuid())
+  distributorId String
+  category String
+  amountMinor Int
+  description String
+  receiptReference String
+  status String @default("SUBMITTED")
+  createdBy String
+  approvedBy String?
+  createdAt DateTime @default(now())
+}
+model CashHandover {
+  id String @id @default(cuid())
+  srId String
+  distributorId String
+  businessDate String
+  expectedMinor Int
+  declaredMinor Int
+  status String @default("SUBMITTED")
+  discrepancyReason String @default("")
+  receivedBy String?
+  createdAt DateTime @default(now())
+  @@unique([srId,distributorId,businessDate])
+}
+model Vehicle {
+  id String @id @default(cuid())
+  registration String @unique
+  name String
+  distributorId String
+  capacityKg Int
+  active Boolean @default(true)
+  trips DeliveryTrip[]
+}
+model DeliveryTrip {
+  id String @id @default(cuid())
+  number String @unique
+  distributorId String
+  distributor Distributor @relation(fields:[distributorId],references:[id])
+  warehouseId String
+  warehouse Warehouse @relation(fields:[warehouseId],references:[id])
+  vehicleId String
+  vehicle Vehicle @relation(fields:[vehicleId],references:[id])
+  driverId String
+  scheduledOn DateTime
+  status String @default("PLANNED")
+  distanceKm Float @default(0)
+  loadKg Float @default(0)
+  startedAt DateTime?
+  closedAt DateTime?
+  createdAt DateTime @default(now())
+  stops TripStop[]
+}
+model TripStop {
+  id String @id @default(cuid())
+  tripId String
+  trip DeliveryTrip @relation(fields:[tripId],references:[id],onDelete:Cascade)
+  orderId String
+  order SecondaryOrder @relation(fields:[orderId],references:[id])
+  sequence Int
+  status String @default("PENDING")
+  recipientName String?
+  proofReference String?
+  lat Float?
+  lng Float?
+  note String @default("")
+  completedAt DateTime?
+  @@unique([tripId,orderId])
+}
+model FieldTask {
+  id String @id @default(cuid())
+  title String
+  type String
+  outletId String
+  outlet Outlet @relation(fields:[outletId],references:[id])
+  assignedTo String
+  createdBy String
+  dueOn DateTime
+  priority String @default("NORMAL")
+  status String @default("OPEN")
+  checklist Json
+  result Json?
+  evidenceReference String?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+}
+model SalesOpportunity {
+  id String @id @default(cuid())
+  outletId String
+  assignedTo String
+  territoryId String
+  title String
+  valueMinor Int
+  stage String @default("QUALIFIED")
+  expectedOn DateTime
+  notes String @default("")
+  createdAt DateTime @default(now())
 }
 model Collection {
   id String @id @default(cuid())

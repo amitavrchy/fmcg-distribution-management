@@ -10,9 +10,58 @@ import { Actor, collectors, managers, outletScope, permit } from "./auth";
 import { collectionInput, parse } from "./validation";
 import { fifo } from "./domain/fifo";
 import { Prisma } from "@prisma/client";
+import { invoiceDue } from "./domain/enterprise";
+import { journal, moneyLine } from "./enterprise/common";
+import { dhakaDate } from "./domain/geo";
 @Injectable()
 export class CollectionsService {
   constructor(@Inject(Db) private db: Db) {}
+  async postJournal(
+    tx: Prisma.TransactionClient,
+    u: Actor,
+    id: string,
+    method: string,
+  ) {
+    const allocations = await tx.collectionAllocation.findMany({
+      where: { collectionId: id },
+      include: {
+        invoice: {
+          include: {
+            delivery: {
+              include: { order: { select: { distributorId: true } } },
+            },
+          },
+        },
+      },
+    });
+    const grouped = new Map<string, number>();
+    for (const a of allocations) {
+      const distributorId = a.invoice.delivery.order.distributorId;
+      grouped.set(
+        distributorId,
+        (grouped.get(distributorId) || 0) + a.amountMinor,
+      );
+    }
+    for (const [distributorId, amount] of grouped)
+      await journal(
+        tx,
+        u,
+        distributorId,
+        `COL-${id}-${distributorId}`,
+        "Allocated customer collection",
+        [
+          moneyLine(
+            method === "CASH"
+              ? "FIELD_CASH"
+              : method === "CHEQUE"
+                ? "BANK"
+                : method,
+            amount,
+          ),
+          moneyLine("ACCOUNTS_RECEIVABLE", 0, amount),
+        ],
+      );
+  }
   async allocate(
     tx: Prisma.TransactionClient,
     id: string,
@@ -38,7 +87,8 @@ export class CollectionsService {
         data: {
           paidMinor: { increment: a.amountMinor },
           status:
-            invoice.paidMinor + a.amountMinor === invoice.totalMinor
+            invoice.paidMinor + invoice.creditedMinor + a.amountMinor ===
+            invoice.totalMinor
               ? "PAID"
               : "PARTIAL",
         },
@@ -48,6 +98,16 @@ export class CollectionsService {
   async create(u: Actor, body: unknown) {
     permit(u, collectors);
     const input = parse(collectionInput, body);
+    const collectedAt = input.collectedAt
+      ? new Date(input.collectedAt)
+      : new Date();
+    if (
+      collectedAt.getTime() > Date.now() + 300000 ||
+      collectedAt.getTime() < Date.now() - 7 * 86400000
+    )
+      throw new BadRequestException(
+        "Collection timestamp must be within the last seven days",
+      );
     return this.db
       .serial(async (tx) => {
         const existing = await tx.collection.findUnique({
@@ -76,17 +136,51 @@ export class CollectionsService {
           _sum: { amountMinor: true },
         });
         const due =
-          invoices.reduce((s, i) => s + i.totalMinor - i.paidMinor, 0) -
+          invoices.reduce((s, i) => s + invoiceDue(i), 0) -
           (pending._sum.amountMinor || 0);
         if (input.amountMinor > due)
           throw new BadRequestException(
             "Amount exceeds unreserved outstanding balance",
           );
         const item = await tx.collection.create({
-          data: { ...input, srId: u.id },
+          data: { ...input, srId: u.id, collectedAt },
         });
         if (input.method !== "CHEQUE")
           await this.allocate(tx, item.id, input.outletId, input.amountMinor);
+        if (input.method !== "CHEQUE") {
+          if (input.method === "CASH") {
+            const allocations = await tx.collectionAllocation.findMany({
+              where: { collectionId: item.id },
+              include: {
+                invoice: {
+                  include: {
+                    delivery: {
+                      select: { order: { select: { distributorId: true } } },
+                    },
+                  },
+                },
+              },
+            });
+            const partners = Array.from(
+              new Set(
+                allocations.map((a) => a.invoice.delivery.order.distributorId),
+              ),
+            );
+            if (
+              await tx.cashHandover.findFirst({
+                where: {
+                  srId: u.id,
+                  distributorId: { in: partners },
+                  businessDate: dhakaDate(collectedAt),
+                },
+              })
+            )
+              throw new ConflictException(
+                "This cash day has already been handed over. Ask accounts to review the late collection.",
+              );
+          }
+          await this.postJournal(tx, u, item.id, input.method);
+        }
         await tx.auditLog.create({
           data: {
             actorId: u.id,
@@ -127,6 +221,9 @@ export class CollectionsService {
         throw new BadRequestException("Invalid collection transition");
       if (status === "RECONCILED" && item.method === "CHEQUE")
         await this.allocate(tx, id, item.outletId, item.amountMinor);
+      if (status === "RECONCILED" && item.method === "CHEQUE") {
+        await this.postJournal(tx, u, id, item.method);
+      }
       await tx.auditLog.create({
         data: {
           actorId: u.id,

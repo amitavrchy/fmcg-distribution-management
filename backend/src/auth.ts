@@ -19,8 +19,8 @@ export function secret() {
     throw new Error("JWT_SECRET must contain at least 32 characters");
   return value;
 }
-export function token(user: Actor) {
-  return sign({ sub: user.id }, secret(), {
+export function token(user: Actor & { sessionVersion?: number }) {
+  return sign({ sub: user.id, v: user.sessionVersion || 0 }, secret(), {
     expiresIn: "12h",
     issuer: "fmcg",
     audience: "fmcg-web",
@@ -67,7 +67,7 @@ export class AuthGuard implements CanActivate {
       const payload = verify(req.cookies?.session || "", secret(), {
         issuer: "fmcg",
         audience: "fmcg-web",
-      }) as { sub: string };
+      }) as { sub: string; v?: number };
       const user = await this.db.user.findUnique({
         where: { id: payload.sub },
         select: {
@@ -77,9 +77,12 @@ export class AuthGuard implements CanActivate {
           role: true,
           territoryId: true,
           distributorId: true,
+          active: true,
+          sessionVersion: true,
         },
       });
-      if (!user) throw new Error();
+      if (!user || !user.active || (payload.v || 0) !== user.sessionVersion)
+        throw new Error();
       req.user = user;
       return true;
     } catch {

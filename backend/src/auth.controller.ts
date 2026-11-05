@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
-import { compare } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 import type { Request, Response } from "express";
 import { Db } from "./db";
 import { AuthGuard, token, Actor } from "./auth";
@@ -40,7 +40,11 @@ export class AuthController {
     const user = await this.db.user.findUnique({
       where: { email: data.email.toLowerCase() },
     });
-    if (!user || !(await compare(data.password, user.passwordHash))) {
+    if (
+      !user ||
+      !user.active ||
+      !(await compare(data.password, user.passwordHash))
+    ) {
       if (failures.size > 10000) failures.clear();
       failures.set(key, {
         count: entry && entry.until > Date.now() ? entry.count + 1 : 1,
@@ -61,6 +65,39 @@ export class AuthController {
   }
   @Get("me") @UseGuards(AuthGuard) me(@Req() req: Request & { user: Actor }) {
     return req.user;
+  }
+  @Post("password") @UseGuards(AuthGuard) async changePassword(
+    @Req() req: Request & { user: Actor },
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const d = parse(
+      z.object({
+        currentPassword: z.string().min(1).max(200),
+        newPassword: z.string().min(12).max(128),
+      }),
+      body,
+    );
+    const user = await this.db.user.findUniqueOrThrow({
+      where: { id: req.user.id },
+    });
+    if (!(await compare(d.currentPassword, user.passwordHash)))
+      throw new UnauthorizedException("Current password is incorrect");
+    const updated = await this.db.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: await hash(d.newPassword, 12),
+        sessionVersion: { increment: 1 },
+      },
+    });
+    res.cookie("session", token(updated), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 43200000,
+      path: "/",
+    });
+    return { ok: true };
   }
   @Post("logout") logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie("session", { path: "/" });

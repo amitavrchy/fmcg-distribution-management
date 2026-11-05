@@ -162,6 +162,8 @@ export class ReadService {
           role: true,
           email: true,
           territoryId: true,
+          distributorId: true,
+          active: true,
         },
       }),
       this.db.territory.findMany({
@@ -244,11 +246,35 @@ export class ReadService {
         },
       }),
     ]);
+    const [allCredits, monthCredits, chartCredits] = await Promise.all([
+      this.db.creditNote.aggregate({
+        where: { request: { order: orderScope(u) } },
+        _sum: { amountMinor: true },
+      }),
+      this.db.creditNote.aggregate({
+        where: {
+          request: { order: orderScope(u) },
+          createdAt: { gte: monthStart },
+        },
+        _sum: { amountMinor: true },
+      }),
+      this.db.creditNote.findMany({
+        where: {
+          request: { order: orderScope(u) },
+          createdAt: { gte: new Date(Date.now() - 31 * 86400000) },
+        },
+        select: { amountMinor: true, createdAt: true },
+      }),
+    ]);
     const series = new Map<string, number>();
     for (const invoice of chartInvoices) {
       if (!invoice.delivery.deliveredAt) continue;
       const day = dhakaDate(invoice.delivery.deliveredAt);
       series.set(day, (series.get(day) || 0) + invoice.totalMinor);
+    }
+    for (const credit of chartCredits) {
+      const day = dhakaDate(credit.createdAt);
+      series.set(day, (series.get(day) || 0) - credit.amountMinor);
     }
     return {
       outlets,
@@ -269,8 +295,11 @@ export class ReadService {
       runs,
       movements,
       metrics: {
-        salesMinor: allSales._sum.totalMinor || 0,
-        monthlySalesMinor: monthSales._sum.totalMinor || 0,
+        salesMinor:
+          (allSales._sum.totalMinor || 0) - (allCredits._sum.amountMinor || 0),
+        monthlySalesMinor:
+          (monthSales._sum.totalMinor || 0) -
+          (monthCredits._sum.amountMinor || 0),
         collectedMinor: received._sum.amountMinor || 0,
         orderCount,
         pendingCount,

@@ -27,10 +27,12 @@ export class Realtime implements OnGatewayConnection {
       const payload = verify(cookies.session, secret(), {
         issuer: "fmcg",
         audience: "fmcg-web",
-      }) as { sub: string };
+      }) as { sub: string; v?: number };
       const user = await this.db.user.findUniqueOrThrow({
         where: { id: payload.sub },
       });
+      if (!user.active || user.sessionVersion !== (payload.v || 0))
+        throw new Error("Session revoked");
       socket.join(`user:${user.id}`);
       if (user.role === "COMPANY_ADMIN") socket.join("admins");
       if (user.territoryId && user.role === "AREA_MANAGER")

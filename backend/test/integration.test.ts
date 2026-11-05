@@ -248,6 +248,15 @@ test(
       await db.stockMovement.deleteMany({
         where: { distributorId: distributor.id },
       });
+      await db.stockBatch.deleteMany({
+        where: { warehouse: { distributorId: distributor.id } },
+      });
+      await db.warehouse.deleteMany({
+        where: { distributorId: distributor.id },
+      });
+      await db.journalEntry.deleteMany({
+        where: { distributorId: distributor.id },
+      });
       await db.distributorStock.deleteMany({
         where: { distributorId: distributor.id },
       });

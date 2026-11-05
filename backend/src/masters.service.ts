@@ -15,6 +15,11 @@ import {
   distributorScope,
 } from "./auth";
 import { minor, parse, text, quantity } from "./validation";
+import {
+  addBatch,
+  defaultWarehouse,
+  ensureBatches,
+} from "./enterprise/warehouse.service";
 @Injectable()
 export class MastersService {
   constructor(@Inject(Db) private db: Db) {}
@@ -174,6 +179,16 @@ export class MastersService {
     )
       throw new NotFoundException();
     return this.db.serial(async (tx) => {
+      await ensureBatches(tx, d.distributorId, d.skuId);
+      const warehouse = await defaultWarehouse(tx, d.distributorId);
+      await addBatch(tx, {
+        warehouseId: warehouse.id,
+        skuId: d.skuId,
+        lot: `PRIMARY-${d.reference}`,
+        qty: d.qty,
+        unitCostMinor: 0,
+        expiresOn: null,
+      });
       const stock = await tx.distributorStock.upsert({
         where: {
           distributorId_skuId: {
@@ -201,7 +216,16 @@ export class MastersService {
   async transfer(u: Actor, id: string, body: unknown) {
     permit(u, managers);
     const d = parse(
-      z.object({ beatId: text, creditLimitMinor: minor.optional() }),
+      z.object({
+        beatId: text,
+        creditLimitMinor: minor.optional(),
+        paymentTermsDays: z.number().int().min(0).max(365).optional(),
+        segment: z
+          .enum(["STANDARD", "KEY_ACCOUNT", "GROWTH", "AT_RISK"])
+          .optional(),
+        lat: z.number().min(-90).max(90).optional(),
+        lng: z.number().min(-180).max(180).optional(),
+      }),
       body,
     );
     const outlet = await this.db.outlet.findFirst({

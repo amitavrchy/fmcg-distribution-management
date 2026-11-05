@@ -32,6 +32,7 @@ export const collectionInput = z
     amountMinor: minor.refine((n) => n > 0),
     method: z.enum(["CASH", "BKASH", "NAGAD", "CHEQUE"]),
     reference: z.string().max(100).default(""),
+    collectedAt: z.iso.datetime().optional(),
   })
   .refine((v) => v.method === "CASH" || v.reference.length > 0, {
     message: "Payment reference is required",

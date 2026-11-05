@@ -26,6 +26,14 @@ import { Realtime } from "./realtime";
 import { Jobs } from "./jobs";
 import { AdminService } from "./admin.service";
 import { Cache } from "./cache";
+import { EnterpriseController } from "./enterprise/controller";
+import { EnterpriseRead } from "./enterprise/read.service";
+import { WarehouseService } from "./enterprise/warehouse.service";
+import { ProcurementService } from "./enterprise/procurement.service";
+import { ReturnsService } from "./enterprise/returns.service";
+import { FinanceService } from "./enterprise/finance.service";
+import { FieldService } from "./enterprise/field.service";
+import { ImportService } from "./enterprise/import.service";
 @Catch()
 class Errors implements ExceptionFilter {
   catch(e: unknown, host: ArgumentsHost) {
@@ -36,6 +44,11 @@ class Errors implements ExceptionFilter {
       message = e.message;
     }
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      if (e.code === "P2004") {
+        status = 400;
+        message =
+          "This operation violates a stock or financial balance constraint";
+      }
       if (e.code === "P2002") {
         status = 409;
         message = "This record already exists";
@@ -44,6 +57,14 @@ class Errors implements ExceptionFilter {
         status = 400;
         message = "Referenced record was not found";
       }
+    }
+    if (
+      (e as { cause?: { originalCode?: string } })?.cause?.originalCode ===
+      "23514"
+    ) {
+      status = 400;
+      message =
+        "This operation violates a stock or financial balance constraint";
     }
     if (status === 500) console.error(e);
     host
@@ -54,7 +75,7 @@ class Errors implements ExceptionFilter {
   }
 }
 @Module({
-  controllers: [AuthController, AppController],
+  controllers: [AuthController, AppController, EnterpriseController],
   providers: [
     Db,
     AuthGuard,
@@ -69,6 +90,13 @@ class Errors implements ExceptionFilter {
     Jobs,
     AdminService,
     Cache,
+    EnterpriseRead,
+    WarehouseService,
+    ProcurementService,
+    ReturnsService,
+    FinanceService,
+    FieldService,
+    ImportService,
   ],
 })
 class AppModule {}

@@ -8,6 +8,8 @@ import { Queue, Worker } from "bullmq";
 import { Db } from "./db";
 import { dhakaDate } from "./domain/geo";
 import { IncentivesService } from "./incentives.service";
+import { WarehouseService } from "./enterprise/warehouse.service";
+import { invoiceDue } from "./domain/enterprise";
 @Injectable()
 export class Jobs implements OnModuleInit, OnModuleDestroy {
   private queue?: Queue;
@@ -15,6 +17,7 @@ export class Jobs implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(Db) private db: Db,
     @Inject(IncentivesService) private incentives: IncentivesService,
+    @Inject(WarehouseService) private warehouses: WarehouseService,
   ) {}
   async onModuleInit() {
     if (!process.env.REDIS_URL) return;
@@ -44,6 +47,10 @@ export class Jobs implements OnModuleInit, OnModuleDestroy {
           return;
         }
         // Eligibility is evaluated at orderedAt, including delayed offline orders.
+        const systemAdmin = await this.db.user.findFirst({
+          where: { role: "COMPANY_ADMIN", active: true },
+        });
+        if (systemAdmin) await this.warehouses.bootstrap(systemAdmin);
         // Do not disable expired schemes: that would erase their historical validity.
         const weekday = new Date().toLocaleDateString("en-US", {
           timeZone: "Asia/Dhaka",
@@ -88,7 +95,7 @@ export class Jobs implements OnModuleInit, OnModuleDestroy {
           ...overdue.map((i) => ({
             action: "CREDIT_OVERDUE_ALERT",
             entityId: i.id,
-            details: { amountMinor: i.totalMinor - i.paidMinor },
+            details: { amountMinor: invoiceDue(i) },
           })),
           ...low
             .filter((s) => s.qty < s.sku.reorderLevel)

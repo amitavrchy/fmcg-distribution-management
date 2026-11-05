@@ -25,12 +25,21 @@ export class Db extends PrismaClient implements OnModuleDestroy {
           timeout: 15000,
         });
       } catch (e) {
+        const adapterError = e as {
+          cause?: { kind?: string; originalCode?: string };
+        };
         if (
-          attempt < 3 &&
-          e instanceof Prisma.PrismaClientKnownRequestError &&
-          e.code === "P2034"
-        )
+          attempt < 5 &&
+          ((e instanceof Prisma.PrismaClientKnownRequestError &&
+            ["P2034", "P2002"].includes(e.code)) ||
+            adapterError.cause?.kind === "TransactionWriteConflict" ||
+            ["40001", "40P01"].includes(adapterError.cause?.originalCode || ""))
+        ) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 20 * (attempt + 1) + Math.random() * 25),
+          );
           continue;
+        }
         throw e;
       }
     }

@@ -1,0 +1,12 @@
+ALTER TABLE "DistributorStock" ADD CONSTRAINT "stock_nonnegative" CHECK ("qty" >= 0);
+ALTER TABLE "StockBatch" ADD CONSTRAINT "batch_nonnegative" CHECK ("qty" >= 0 AND "unitCostMinor" >= 0);
+ALTER TABLE "Invoice" ADD CONSTRAINT "invoice_balance_valid" CHECK ("totalMinor" >= 0 AND "paidMinor" >= 0 AND "creditedMinor" >= 0 AND "paidMinor" + "creditedMinor" <= "totalMinor");
+ALTER TABLE "SecondaryOrder" ADD CONSTRAINT "order_totals_valid" CHECK ("goodsMinor" >= 0 AND "discountMinor" >= 0 AND "discountMinor" <= "goodsMinor" AND "totalMinor" = "goodsMinor" - "discountMinor");
+ALTER TABLE "SecondaryOrderLine" ADD CONSTRAINT "order_quantities_valid" CHECK ("qty" > 0 AND "freeQty" >= 0 AND "allocatedQty" >= 0 AND "allocatedQty" <= "qty" AND "allocatedFreeQty" >= 0 AND "allocatedFreeQty" <= "freeQty");
+ALTER TABLE "Collection" ADD CONSTRAINT "collection_positive" CHECK ("amountMinor" > 0);
+ALTER TABLE "CollectionAllocation" ADD CONSTRAINT "allocation_positive" CHECK ("amountMinor" > 0);
+ALTER TABLE "CreditNote" ADD CONSTRAINT "credit_reconciles" CHECK ("amountMinor" >= 0 AND "appliedMinor" >= 0 AND "refundMinor" >= 0 AND "amountMinor" = "appliedMinor" + "refundMinor");
+ALTER TABLE "SupplierPayable" ADD CONSTRAINT "payable_balance_valid" CHECK ("totalMinor" >= 0 AND "paidMinor" >= 0 AND "paidMinor" <= "totalMinor");
+ALTER TABLE "PurchaseOrderLine" ADD CONSTRAINT "purchase_quantities_valid" CHECK ("qty" > 0 AND "receivedQty" >= 0 AND "receivedQty" <= "qty" AND "unitCostMinor" > 0);
+ALTER TABLE "Expense" ADD CONSTRAINT "expense_positive" CHECK ("amountMinor" > 0);
+ALTER TABLE "StockTransfer" ADD CONSTRAINT "transfer_positive" CHECK ("qty" > 0);
