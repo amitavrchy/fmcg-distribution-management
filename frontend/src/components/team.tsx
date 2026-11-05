@@ -3,6 +3,7 @@ import { MapPin, Users, Building2 } from "lucide-react";
 import { useApp } from "./provider";
 import { Badge, Field, Modal, Panel, SimpleForm } from "./ui";
 import { initials } from "@/lib/format";
+import { AdminTools } from "./admin-tools";
 export function Team({
   create,
   onCreated,
@@ -13,6 +14,7 @@ export function Team({
   const { data, mutate } = useApp();
   return (
     <>
+      <AdminTools />
       <div className="territory-grid">
         {data.territories.map((t) => (
           <Panel key={t.id}>

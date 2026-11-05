@@ -4,6 +4,7 @@ import { Package, ArrowDownLeft } from "lucide-react";
 import { useApp } from "./provider";
 import { Badge, Empty, Field, Modal, Panel, SearchBox, SimpleForm } from "./ui";
 import { money, number, date } from "@/lib/format";
+import { AdminTools } from "./admin-tools";
 export function Inventory({
   catalog = false,
   create,
@@ -29,6 +30,7 @@ export function Inventory({
   );
   return (
     <>
+      {catalog && <AdminTools pricing />}
       <div className="mini-stats">
         <div>
           <span>Products in catalog</span>
