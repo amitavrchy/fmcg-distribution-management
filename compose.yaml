@@ -13,7 +13,7 @@ services:
       retries: 10
   redis:
     image: redis:7-alpine
-    ports: ["127.0.0.1:6388:6379"]
+    ports: ["127.0.0.1:6397:6379"]
     command: redis-server --appendonly yes
     volumes: ["redisdata:/data"]
 volumes:
