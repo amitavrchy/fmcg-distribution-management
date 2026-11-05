@@ -1,6 +1,6 @@
 # Architecture
 
-Next.js proxies `/api` to NestJS and connects to authenticated Socket.IO. PostgreSQL stores business records; Redis stores price/beat caches and BullMQ schedules. Prisma 7 uses a bounded PostgreSQL driver-adapter pool.
+The root contains two standalone applications, frontend and backend, each with its own dependencies and lock file. Next.js proxies `/api` to NestJS and connects to authenticated Socket.IO. PostgreSQL stores business records; Redis stores price/beat caches and BullMQ schedules. Prisma 7 uses a bounded PostgreSQL driver-adapter pool.
 
 ```mermaid
 flowchart LR
@@ -26,4 +26,6 @@ Company admins have company scope. Managers/accounts have assigned territories. 
 
 The service worker never caches API responses. IndexedDB snapshots/outboxes are scoped by user identity. Cached identity cannot authorize server sync. Separate browser profiles are appropriate on shared devices.
 
-Single-company installation with integer-piece inventory. Full general ledger, automatic claims/returns settlement, fractional quantities and multi-company tenancy require further scope. Online orders are paginated; offline snapshots retain recent history; dashboard metrics query full history separately.
+The advanced layer adds procurement, multi-warehouse batches and FEFO allocations, purchase receipts/payables, return authorizations and credit/refund settlement, balanced distribution journals, expenses/cash handover, fleet/trips/POD references, execution checklists, sales opportunities and demand/ABC planning. Journals are immutable through the API and carry stable posting references. Stock and financial balances also have database check constraints.
+
+This is a single-company installation with integer-piece inventory. A full statutory ledger, fractional quantities and multi-company tenancy remain outside scope. Online orders are paginated; offline snapshots retain recent history; dashboard metrics query full history separately. See ADVANCED_CAPABILITIES.md for algorithm, evidence and integration boundaries.

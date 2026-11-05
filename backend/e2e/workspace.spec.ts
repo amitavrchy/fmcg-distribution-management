@@ -6,8 +6,10 @@ async function signIn(page: Page, email = "admin@fmcg.local") {
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in to workspace" }).click();
-  await expect(page.locator('main h1')).toHaveText('Control tower');
-  await expect(page.getByRole('heading',{name:/One operating picture/})).toBeVisible();
+  await expect(page.locator("main h1")).toHaveText("Control tower");
+  await expect(
+    page.getByRole("heading", { name: /One operating picture/ }),
+  ).toBeVisible();
 }
 test("dashboard login and every operational route renders", async ({
   page,
@@ -20,7 +22,16 @@ test("dashboard login and every operational route renders", async ({
     fullPage: true,
   });
   for (const section of [
-    'overview','control','procurement','warehouses','finance','returns','logistics','field','analytics','approvals',
+    "overview",
+    "control",
+    "procurement",
+    "warehouses",
+    "finance",
+    "returns",
+    "logistics",
+    "field",
+    "analytics",
+    "approvals",
     "orders",
     "deliveries",
     "outlets",
@@ -38,7 +49,7 @@ test("dashboard login and every operational route renders", async ({
     await page.goto(`/${section}`);
     await expect(page.locator("main h1")).toBeVisible();
     await expect(page.locator(".boot")).toHaveCount(0);
-    await expect(page.locator('.enterprise-loading')).toHaveCount(0);
+    await expect(page.locator(".enterprise-loading")).toHaveCount(0);
     const undersized = await page.locator("main").evaluate((root) =>
       Array.from(root.querySelectorAll("*"))
         .filter(

@@ -1,5 +1,68 @@
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+test("password rotation revokes older sessions and account disabling revokes current access", async ({
+  request,
+  playwright,
+}) => {
+  await request.post("/api/auth/login", {
+    data: { email: "admin@fmcg.local", password: process.env.SEED_PASSWORD },
+  });
+  const snapshot = await (await request.get("/api/snapshot")).json();
+  const email = `session-${randomUUID()}@test.local`,
+    password = "InitialTestPassword!2026";
+  const created = await request.post("/api/admin/users", {
+    data: {
+      email,
+      fullName: "Session acceptance user",
+      password,
+      role: "SR",
+      territoryId: snapshot.territories[0].id,
+    },
+  });
+  expect(created.ok()).toBe(true);
+  const member = await created.json();
+  const first = await playwright.request.newContext({
+      baseURL: "http://127.0.0.1:3000",
+    }),
+    second = await playwright.request.newContext({
+      baseURL: "http://127.0.0.1:3000",
+    });
+  try {
+    for (const client of [first, second])
+      expect(
+        (
+          await client.post("/api/auth/login", { data: { email, password } })
+        ).ok(),
+      ).toBe(true);
+    expect(
+      (
+        await first.post("/api/auth/password", {
+          data: {
+            currentPassword: password,
+            newPassword: "RotatedTestPassword!2026",
+          },
+        })
+      ).ok(),
+    ).toBe(true);
+    expect((await first.get("/api/auth/me")).status()).toBe(200);
+    expect((await second.get("/api/auth/me")).status()).toBe(401);
+    expect(
+      (
+        await request.patch(`/api/admin/users/${member.id}`, {
+          data: {
+            active: false,
+            role: "SR",
+            territoryId: snapshot.territories[0].id,
+          },
+        })
+      ).ok(),
+    ).toBe(true);
+    expect((await first.get("/api/auth/me")).status()).toBe(401);
+  } finally {
+    await first.dispose();
+    await second.dispose();
+  }
+});
 test("API rejects anonymous access and malicious origin", async ({
   request,
 }) => {

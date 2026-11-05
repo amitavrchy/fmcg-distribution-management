@@ -1,86 +1,101 @@
-﻿# DeshFlow — FMCG distribution management
+﻿# DeshFlow — advanced FMCG distribution workspace
 
-A Bangladesh distribution workspace built from [Project_spec.md](Project_spec.md). Next.js App Router + NestJS, PostgreSQL/Prisma, Redis/BullMQ and authenticated Socket.IO.
+A Next.js/React frontend and NestJS API for Bangladesh distribution operations. PostgreSQL/Prisma stores transactional data; Redis/BullMQ handles caching and scheduled jobs; Socket.IO refreshes authorized workspaces.
 
-![Desktop workspace](docs/overview.png)
+![Control tower](docs/overview.png)
 
-## Run locally
+## Two-folder structure
 
-Requirements: Node 22.12+ (24 recommended), npm, Docker Compose. Run from the repository root:
-
-```powershell
-Copy-Item backend/.env.example backend/.env
-Copy-Item frontend/.env.example frontend/.env.local
-docker compose up -d
-npm ci
-npm run db:generate
-npm run db:migrate
-npm run db:seed
-npm run dev
+```text
+frontend/   Next.js app, UI, PWA, frontend dependencies and lock file
+backend/    API, Prisma/migrations, Docker, scripts, tests, docs, CI example
 ```
 
-Open **http://127.0.0.1:3000**. API: localhost:4000/api. PostgreSQL: localhost:5438; Redis: localhost:6397. Docker ports bind to loopback and volumes persist data. `docker compose down` stops services without deleting data.
+Only these two project directories live at the root. Hidden `.git` metadata remains for version control. Each application owns its package.json, package-lock.json and node_modules. There is no root npm workspace.
 
-The seed uses `SEED_PASSWORD` from `backend/.env`. Example value: `ChangeMe!2026`. Set your own before seeding shared environments. Seed skips existing user databases without deleting data.
+## Start
 
-| Email                  | Role                  |
-| ---------------------- | --------------------- |
-| admin@fmcg.local       | Company administrator |
-| manager@fmcg.local     | Area manager          |
-| distributor@fmcg.local | Distributor           |
-| sr@fmcg.local          | Sales representative  |
-| accounts@fmcg.local    | Accounts              |
+Requirements: Node 22.12+ (24 recommended), npm, Docker Compose; Chrome for local browser tests.
 
-Seed: Dhaka Division → Dhaka North → Mirpur; two beats, one distributor, 30 outlets, 20 SKUs, five accounts, promotions, targets, visits, 36 orders and related deliveries/payments. Browser tests create additional demo orders.
+From the repository root:
 
-## Features
+```text
+node backend/scripts/setup.mjs
+```
 
-- Actual sales, collections, credit exposure, target and field performance, stock/credit alerts. Dashboard totals include full history; orders support server pagination.
-- Territory hierarchy, team accounts, distributors, outlets, beat transfers, credit limits, products and versioned prices.
-- Secondary orders with prioritized percent, fixed, free-goods slab and combo schemes.
-- Credit approval, allocation, dispatch, delivery, cancellation and backorder flags.
-- Primary stock receipts with invoice references and movement ledger.
-- Cash/bKash/Nagad/cheque collections, FIFO allocation, cheque reconciliation/bounce.
-- Weekly beats, GPS visits and geofence flags.
-- Monthly targets, SKU focus, incentive slabs, locked approvals and paid state.
-- Delivery claims/return requests with manager review and audit history.
-- Per-user offline order/collection outbox, reconnect sync, idempotent UUIDs, visible errors.
-- Search/filter, CSV export, audit history and authenticated realtime refresh.
+The setup helper copies missing environment examples, generates a random JWT secret for a new environment, installs both applications, starts PostgreSQL/Redis, applies migrations and seeds base/advanced demo data. It preserves existing environment files and business data.
 
-All text starts at **14px**. Responsive phone/tablet/desktop layouts, focus-trapped dialogs, Escape support and reduced-motion animations. SVG labels compensate for scaling.
+Then, from `backend/`:
 
-## Offline and business rules
+```text
+npm run dev:all
+```
 
-Sign in and open the workspace online once before disconnecting. Service worker caches shell/static assets; IndexedDB stores scoped snapshots/outboxes. Orders/collections queue offline; GPS visits need connectivity. Use separate browser profiles on shared devices.
+Open **http://127.0.0.1:3000**. API: localhost:4000/api, PostgreSQL: localhost:5438, Redis: localhost:6397. Compose keeps the project name `fmcg-distribution-management`, preserving existing volumes after the file move. Stop infrastructure with `docker compose down` from backend; do not use `--volumes` unless intentionally removing data.
 
-Reconnect sync preserves UUIDs and retains failed items. Stale prices need a replacement with current prices; credit excess creates `PENDING_APPROVAL`. Cached history retains 500 recent orders/collections; online orders search all history. `/sync/pull` returns a full replacement snapshot; `since` is reserved for future delta optimization.
+For manual setup, run `npm ci` in each folder, copy the two environment examples, then run `docker compose up -d`, `npm run db:generate`, `npm run db:migrate`, `npm run db:seed`, `npm run db:seed:advanced` inside backend.
 
-Money is integer paisa; quantities are integer pieces. Credit includes invoices and reserved orders. Serializable transactions retry conflicts. Schemes use `orderedAt`, including delayed orders up to seven days old. Free goods reserve only available stock.
+## Demo access
 
-Allocation reduces stock. Cancellation before dispatch restores paid/free units. Partial invoices charge allocated paid units with proportional discount. Follow-up orders fulfill backorders. Payments cannot exceed unpaid/unreserved balance; cheques allocate after clearing.
+Use `SEED_PASSWORD` from backend/.env. Example password is `ChangeMe!2026`; change it before seeding any shared environment.
 
-Incentives: 80% achievement → 1%, 100% → 2%, 120% → 2.5%, plus BDT 5/productive visit and 1% focus sales. Approved periods lock. Monthly jobs run at 02:00 on the first, Asia/Dhaka. Daily jobs materialize visits and record overdue/low-stock alerts. Redis caches prices and per-user beat snapshots with invalidation.
+| Account                | Role                                   |
+| ---------------------- | -------------------------------------- |
+| admin@fmcg.local       | Company administrator                  |
+| manager@fmcg.local     | Area manager                           |
+| distributor@fmcg.local | Distributor                            |
+| sr@fmcg.local          | Sales representative / assigned driver |
+| accounts@fmcg.local    | Accounts                               |
 
-## Verify
+Base seed: one territory, two beats, one distributor, 30 outlets, 20 products and sample sales. Advanced seed adds warehouses, suppliers, purchase pipeline, batch receipts, opening journals, fleet, a planned trip, field tasks and opportunities. Seeds are repeatable without deleting existing data. Browser acceptance creates additional demo records.
 
-```powershell
-npm run typecheck
+## Operational modules
+
+- **Control tower:** stock, supply, delivery, working capital, exceptions and activity timeline.
+- **Procurement:** suppliers, multi-line purchase orders, manager approval, partial/full GRNs, batch/expiry capture, landed cost, payables and partial supplier payments.
+- **Warehouse operations:** multiple locations, FEFO paid/free reservations, quality quarantine, recall propagation, outlet traceability, in-transit stock transfers, physical counts and approved variance adjustments.
+- **Sales:** versioned trade prices, percent/fixed/free-goods/combo schemes, credit exposure, overrides, orders, allocation, delivery/invoicing, cancellations and backorders.
+- **Delivery control:** vehicles, payload capacity checks, trip planning, geographic stop ordering, driver assignment, dispatch, recipient/POD references, failed attempts and trip closure.
+- **Returns:** authorization, quantity validation, physical inspection/receipt, restock/quarantine/scrap, invoice credits, refund liability and refund payment.
+- **Finance:** FIFO collections, cheque clearing/bounce, receivables aging, outlet statements, supplier settlement, balanced journals/trial balance, expense approvals/payments and field-cash handover with variance accountability.
+- **Field & CRM:** beats/GPS, productive calls, outlet segments/terms, merchandising/audit tasks, evidence-backed checklists, sales opportunity pipeline and monthly incentives.
+- **Planning:** demand rate, days of cover, lead/safety stock recommendations, ABC classification and expiry exposure.
+- **Data & security:** validated CSV import studio, export/print, approval inbox, audit history, account access changes, password changes and session revocation.
+
+All application text is at least 14px. Responsive layouts, reduced-motion animation, keyboard dialogs and operational search/filter controls are retained.
+
+## Integrity rules
+
+Money is stored in integer paisa; quantities are integer pieces. Serializable transactions retry conflicts, and PostgreSQL checks enforce nonnegative stock and valid invoice/payable/credit balances. Client UUIDs prevent duplicate order, collection, purchase and receipt posting. Collection journals follow invoice allocation per distributor.
+
+Allocation uses available, unexpired batches in FEFO order. Unsafe allocated lots block dispatch/delivery. Transfers remove available stock while in transit. Counts reject stale stock snapshots. Cancellation restores allocated paid/free stock. Expiry removes stock from sellable availability; recalls propagate to derived return/transfer lots.
+
+Returns cannot exceed delivered paid/free quantities. Only paid units create credits. Physical receipt posts stock disposition and credit together. Unpaid invoice balance receives credit first; paid value creates a refund liability. A pending cheque must be cleared/bounced before return credit posting.
+
+Landed costs use integer unit costs; fractional-unit freight residue is posted to `LANDED_COST_ROUNDING`, preserving the full supplier liability. Unknown historical opening cost stays zero and is not represented as an inferred purchase cost.
+
+## Offline
+
+Sign in online once before disconnecting. SR orders/collections are retained in a per-user IndexedDB outbox and reconnect with original UUIDs. Stale price and credit errors stay visible. Offline collections preserve their original collection time. Sync collections before submitting the cash-day handover; late cash requires accounts review after handover.
+
+Advanced purchasing, warehouse changes and settlement require connectivity. Cached sales history contains 500 recent orders/collections; online order search uses server pagination and dashboard totals cover full history.
+
+## Verify and deploy
+
+From backend:
+
+```text
+npm run check:all
 npm test
-$env:RUN_INTEGRATION='1'; npm test; Remove-Item Env:RUN_INTEGRATION
-npm run build
-npm audit
-# With npm run dev in another terminal and Chrome installed:
-npm run test:e2e
+npm run build:all
+npm run verify
+npm run verify:browser
 ```
 
-13 unit tests plus one database acceptance test cover schemes, credit, FIFO, incentive slabs, GPS, concurrent duplicates/delivery, territory isolation, partial/free stock, cheque clearing and cancellation restoration. Integration tests create isolated records and clean them up; CI uses a dedicated database. Eight browser tests cover every route, role/origin rejection, orders, mobile/typography, offline sync, GPS and accessibility. Screenshots go to `artifacts/`.
+`verify` includes database acceptance tests, structure checks, migration/seeds, builds and both dependency audits. `verify:browser` additionally supervises production servers and runs Playwright. A dedicated test database is recommended. If servers are already running, the runner reuses them and does not stop them.
 
-## Deployment and boundaries
+For production, apply migrations and supervise `npm run start` in each application folder. Configure strong secrets, database/Redis access, HTTPS, allowed origins, API/socket URLs, backups and gateway limits. Set BIND_HOST only when the deployment network requires it. No production hosting or external payment/map/storage/messaging account is provisioned.
 
-Build, then supervise `npm run start -w backend` and `npm run start -w frontend` separately. Apply migrations first. Set unique database/Redis credentials, `JWT_SECRET`, `CORS_ORIGINS`, `API_URL`, `NEXT_PUBLIC_SOCKET_URL`, and HTTPS. Set `BIND_HOST=0.0.0.0` only when containers/proxies require it. Reverse-proxy Socket.IO to the API. HttpOnly/SameSite cookies, origin checks, role/scope checks, validation and login limits run on the API. Public deployments need managed backups and gateway rate limits.
+GitHub workflow discovery requires a root `.github/workflows`, which conflicts with the two-folder requirement. The workflow is retained as an **external runner example** in `ci/github-actions.example.yml`; automatic root workflow discovery is not active. Use the portable verification runner from your CI service.
 
-Local implementation is available; production hosting has not been provisioned. The specified stack needs Node hosting with PostgreSQL/Redis access.
-
-Claims are review records: approval does **not** automatically issue credit notes/refunds or restock physical returns. Accounts must settle claims and verify returns through the organization's accounting process. Primary receipts track invoice references/stock movements rather than supplier payment accounting. Payment references are recorded; live payment, SMS, SMTP and S3 integrations are not connected. Optional RETAILER lite is not enabled. Manufacturing/modern trade POS are outside core scope.
-
-See [API](docs/API.md), [architecture](docs/ARCHITECTURE.md), [verification](docs/VERIFICATION.md).
+[Detailed capabilities and boundaries](docs/ADVANCED_CAPABILITIES.md) · [API](docs/API.md) · [Architecture](docs/ARCHITECTURE.md) · [Verification](docs/VERIFICATION.md) · [Original project specification](docs/Project_spec.md)

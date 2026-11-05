@@ -7,10 +7,11 @@ export default defineConfig({
   workers: 1,
   timeout: 90000,
   use: {
+    actionTimeout: 15000,
     baseURL: "http://127.0.0.1:3000",
     channel: process.env.PLAYWRIGHT_CHANNEL || "chrome",
     headless: true,
-    reducedMotion:'reduce',
+    reducedMotion: "reduce",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

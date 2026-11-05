@@ -54,4 +54,36 @@ Scheme rules: `PERCENT {value,minMinor}`, `AMOUNT {value,minMinor}`, `FREE {skuI
 
 Sync: `{items:[{id:UUID,type:"ORDER",payload:orderBody}]}` → `{results:[{id,ok,data?,error?}]}`. Retain failed items and preserve their client IDs when retrying.
 
-Socket.IO authenticates the cookie. `refresh` contains only a timestamp. Admin, manager-territory and originating-user rooms fetch authorized snapshots.
+Socket.IO authenticates the cookie and session version. `refresh` contains only a timestamp. Admin, manager-territory and originating-user rooms fetch authorized snapshots.
+
+## Advanced operations
+
+The `/api/enterprise` prefix exposes the advanced workflows. `GET /snapshot` returns authorized warehouse, procurement, finance, return, trip, task, opportunity and analytics records. SR financial visibility is limited; server scopes are enforced independently of navigation.
+
+| Method       | Path under /enterprise             | Purpose                                                            |
+| ------------ | ---------------------------------- | ------------------------------------------------------------------ |
+| POST         | /warehouses                        | Create distributor warehouse                                       |
+| PATCH        | /batches/:id                       | Disposition plus reason: AVAILABLE, QUARANTINED, RECALLED, EXPIRED |
+| POST / PATCH | /transfers, /transfers/:id         | Request, approve dispatch, receive or cancel warehouse transfer    |
+| POST / PATCH | /counts, /counts/:id               | Snapshot physical count, approve/reject variance                   |
+| POST         | /suppliers                         | Supply partner with terms                                          |
+| POST / PATCH | /purchases, /purchases/:id         | Purchase draft, approval or cancellation                           |
+| POST         | /purchases/:id/receive             | Idempotent GRN with warehouse, quantities, lots and expiry         |
+| POST         | /payables/:id/pay                  | Idempotent supplier payment                                        |
+| POST / PATCH | /returns, /returns/:id             | Quantity-capped authorization and review                           |
+| POST         | /returns/:id/receive               | Physical receipt, credit posting and refund liability              |
+| POST         | /credits/:id/refund                | Pay the recorded refund liability                                  |
+| POST / PATCH | /expenses, /expenses/:id           | Expense submission and review                                      |
+| POST         | /expenses/:id/pay                  | Pay approved liability                                             |
+| POST         | /handovers                         | Cash day declaration by partner                                    |
+| POST         | /handovers/:id/receive             | Accounts acknowledgement and variance posting                      |
+| POST         | /vehicles                          | Fleet capacity record                                              |
+| POST / PATCH | /trips, /trips/:id                 | Plan, start, close or cancel trip                                  |
+| PATCH        | /stops/:id                         | Delivered recipient/POD reference or failure reason, optional GPS  |
+| POST         | /tasks                             | Assign typed task and checklist                                    |
+| POST         | /tasks/:id/complete                | All checklist results and evidence reference                       |
+| POST / PATCH | /opportunities, /opportunities/:id | Opportunity creation and stage transition                          |
+| POST         | /imports/outlets/preview           | CSV validation and row-level errors/skips                          |
+| POST         | /imports/outlets/apply             | Revalidate and atomically import valid file                        |
+
+`POST /api/auth/password` checks the current password and changes to a 12+ character password, revoking other sessions. `PATCH /api/admin/users/:id` changes account role/state/scope and revokes existing sessions; the last administrator is protected. Collection inputs additionally accept `collectedAt` for original offline timing, limited to seven days.

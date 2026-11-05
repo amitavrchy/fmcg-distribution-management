@@ -1,7 +1,8 @@
-name: Verify distribution workspace
+﻿# External-runner example. Store this workflow in a separate CI configuration repository.
+# The application checkout itself keeps only frontend/ and backend/ at its root.
+name: Verify DeshFlow application
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -24,32 +25,29 @@ jobs:
       JWT_SECRET: ci-only-test-signing-secret-with-32-characters
       SEED_PASSWORD: CiTestPassword!2026
       CORS_ORIGINS: http://127.0.0.1:3000
-      RUN_INTEGRATION: "1"
+      PLAYWRIGHT_CHANNEL: chromium
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: amitavrchy/fmcg-distribution-management
+          path: app
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: |
+            app/backend/package-lock.json
+            app/frontend/package-lock.json
       - run: npm ci
-      - run: npm run db:generate
-      - run: npm run db:migrate
-      - run: npm run db:seed
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      - run: npm audit --audit-level=high
+        working-directory: app/backend
+      - run: npm ci
+        working-directory: app/frontend
       - run: npx playwright install --with-deps chromium
-      - name: Browser acceptance
-        env:
-          PLAYWRIGHT_CHANNEL: chromium
-        run: |
-          npm run start -w backend > /tmp/fmcg-api.log 2>&1 &
-          npm run start -w frontend > /tmp/fmcg-web.log 2>&1 &
-          for attempt in $(seq 1 30); do curl -fsS http://127.0.0.1:3000/login > /dev/null && break; sleep 1; done
-          npm run test:e2e
+        working-directory: app/backend
+      - run: node scripts/verify.mjs --browser
+        working-directory: app/backend
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: browser-traces
-          path: test-results/
+          path: app/backend/test-results/
