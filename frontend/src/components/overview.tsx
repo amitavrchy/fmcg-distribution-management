@@ -22,28 +22,14 @@ import { exportCsv } from "@/lib/export";
 export function Overview({ newOrder }: { newOrder: () => void }) {
   const { data, user } = useApp(),
     [range, setRange] = useState(7);
-  const sales = data.orders
-    .filter((o) => o.status === "DELIVERED")
-    .reduce((s, o) => s + (o.delivery?.invoice?.totalMinor || 0), 0);
-  const collected = data.collections
-    .filter((c) =>
-      c.method !== "CHEQUE"
-        ? c.status !== "BOUNCED"
-        : c.status === "RECONCILED",
-    )
-    .reduce((s, c) => s + c.amountMinor, 0);
+  const sales = data.metrics.salesMinor;
+  const collected = data.metrics.collectedMinor;
   const outstanding = data.invoices.reduce(
     (s, i) => s + i.totalMinor - i.paidMinor,
     0,
   );
   const low = data.stock.filter((s) => s.qty < s.sku.reorderLevel);
-  const monthly = data.orders
-    .filter(
-      (o) =>
-        o.status === "DELIVERED" &&
-        o.delivery?.deliveredAt?.slice(0, 7) === data.today.slice(0, 7),
-    )
-    .reduce((s, o) => s + (o.delivery?.invoice?.totalMinor || 0), 0);
+  const monthly = data.metrics.monthlySalesMinor;
   const target = data.targets
     .filter((t) => t.periodYm === data.today.slice(0, 7))
     .reduce((s, t) => s + t.targetMinor, 0);
@@ -115,8 +101,8 @@ export function Overview({ newOrder }: { newOrder: () => void }) {
           },
           {
             name: "Total orders",
-            value: number(data.orders.length),
-            detail: `${data.orders.filter((o) => o.status === "SUBMITTED").length} awaiting confirmation`,
+            value: number(data.metrics.orderCount),
+            detail: `${data.metrics.pendingCount} awaiting confirmation`,
             icon: ShoppingBag,
             tone: "blue",
           },
@@ -172,7 +158,11 @@ export function Overview({ newOrder }: { newOrder: () => void }) {
             <strong>{money(sales)}</strong>
             <span>Total delivered sales in this workspace</span>
           </div>
-          <SalesChart orders={data.orders} days={range} />
+          <SalesChart
+            orders={data.orders}
+            days={range}
+            series={data.salesSeries}
+          />
         </Panel>
         <Panel
           title="Monthly target"

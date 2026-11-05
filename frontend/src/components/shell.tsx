@@ -23,11 +23,12 @@ import {
   Search,
   Check,
   Command,
+  Bell,
 } from "lucide-react";
 import { useApp } from "./provider";
 import { initials, label } from "@/lib/format";
 import type { LucideIcon } from "lucide-react";
-const nav: {group: string; items: [string, string, LucideIcon][]}[] = [
+const nav: { group: string; items: [string, string, LucideIcon][] }[] = [
   {
     group: "WORKSPACE",
     items: [
@@ -61,7 +62,35 @@ export function Shell({
   const { user, data, queue, online, logout } = useApp(),
     [open, setOpen] = useState(false),
     [query, setQuery] = useState(""),
-    [search, setSearch] = useState(false);
+    [search, setSearch] = useState(false),
+    [alertsOpen, setAlertsOpen] = useState(false);
+  const alerts = [
+    ...data.stock
+      .filter((s) => s.qty < s.sku.reorderLevel)
+      .map((s) => ({
+        id: s.id,
+        text: `${s.sku.name}: ${s.qty} units remaining`,
+        href: "/inventory",
+      })),
+    ...data.invoices
+      .filter(
+        (i) =>
+          i.totalMinor > i.paidMinor &&
+          Date.now() - new Date(i.createdAt).getTime() > 30 * 86400000,
+      )
+      .map((i) => ({
+        id: i.id,
+        text: `${i.number} is overdue for collection`,
+        href: "/collections",
+      })),
+    ...data.orders
+      .filter((o) => o.status === "PENDING_APPROVAL")
+      .map((o) => ({
+        id: o.id,
+        text: `${o.number} needs credit approval`,
+        href: "/orders",
+      })),
+  ];
   const title =
     nav.flatMap((g) => g.items).find((n) => n[0] === section)?.[1] ||
     label(section);
@@ -179,6 +208,18 @@ export function Shell({
           </div>
           <div className="topbar-right">
             <button
+              className="icon-button notification-button"
+              aria-label={`Notifications: ${alerts.length}`}
+              aria-expanded={alertsOpen}
+              onClick={() => {
+                setAlertsOpen(!alertsOpen);
+                setSearch(false);
+              }}
+            >
+              <Bell size={19} />
+              {alerts.length > 0 && <span className="notification-dot" />}
+            </button>
+            <button
               className="global-search"
               onClick={() => setSearch(!search)}
             >
@@ -195,6 +236,36 @@ export function Shell({
             <span className="top-avatar">{initials(user.fullName)}</span>
           </div>
         </header>
+        {alertsOpen && (
+          <div className="global-search-results notification-panel">
+            <div className="panel-heading">
+              <h2>Needs your attention</h2>
+              <button
+                className="icon-button"
+                aria-label="Close notifications"
+                onClick={() => setAlertsOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="search-links">
+              {alerts.length ? (
+                alerts.map((a) => (
+                  <Link
+                    key={a.id}
+                    href={a.href}
+                    onClick={() => setAlertsOpen(false)}
+                  >
+                    {a.text}
+                    <ArrowUpRight size={16} />
+                  </Link>
+                ))
+              ) : (
+                <p className="callout">All clear. No outstanding alerts.</p>
+              )}
+            </div>
+          </div>
+        )}
         {search && (
           <div className="global-search-results">
             <div className="search">

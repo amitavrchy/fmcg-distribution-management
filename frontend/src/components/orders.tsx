@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowRight, Eye, Truck } from "lucide-react";
 import { useApp } from "./provider";
 import { Badge, Empty, Modal, Panel, SearchBox } from "./ui";
 import { money, date, label } from "@/lib/format";
 import type { Order } from "@/lib/types";
+import { api } from "@/lib/api";
 const steps: Record<string, string[]> = {
   SUBMITTED: ["CONFIRMED", "CANCELLED"],
   PENDING_APPROVAL: ["CONFIRMED", "CANCELLED"],
@@ -13,12 +14,45 @@ const steps: Record<string, string[]> = {
   DISPATCHED: ["DELIVERED"],
 };
 export function Orders({ delivery = false }: { delivery?: boolean }) {
-  const { data, user, mutate, notify } = useApp(),
+  const { data, user, mutate, notify, online } = useApp(),
     [q, setQ] = useState(""),
     [status, setStatus] = useState("ALL"),
     [selected, setSelected] = useState<string | null>(null),
-    [busy, setBusy] = useState(false);
-  const orders = data.orders.filter(
+    [busy, setBusy] = useState(false),
+    [page, setPage] = useState(1),
+    [history, setHistory] = useState<{ rows: Order[]; total: number } | null>(
+      null,
+    ),
+    [historyError, setHistoryError] = useState("");
+  useEffect(() => {
+    setPage(1);
+  }, [q, status, delivery]);
+  useEffect(() => {
+    if (!online) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      void api<{ rows: Order[]; total: number }>(
+        `orders?${new URLSearchParams({ page: String(page), q, status, delivery: String(delivery) })}`,
+      )
+        .then((result) => {
+          if (live) {
+            setHistory(result);
+            setHistoryError("");
+          }
+        })
+        .catch((e) => {
+          if (live)
+            setHistoryError(
+              e instanceof Error ? e.message : "Unable to load order history",
+            );
+        });
+    }, 200);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [online, page, q, status, delivery, data.serverTime]);
+  const filtered = data.orders.filter(
     (o) =>
       (!delivery || !!o.delivery) &&
       (status === "ALL" || status === o.status) &&
@@ -26,7 +60,10 @@ export function Orders({ delivery = false }: { delivery?: boolean }) {
         .toLowerCase()
         .includes(q.toLowerCase()),
   );
-  const current = data.orders.find((o) => o.id === selected);
+  const orders = online && history ? history.rows : filtered;
+  const current =
+    orders.find((o) => o.id === selected) ||
+    data.orders.find((o) => o.id === selected);
   const operate = ["COMPANY_ADMIN", "AREA_MANAGER", "DISTRIBUTOR"].includes(
     user.role,
   );
@@ -47,6 +84,17 @@ export function Orders({ delivery = false }: { delivery?: boolean }) {
   };
   return (
     <>
+      {!online && data.historyLimited && (
+        <p className="callout">
+          Showing your latest 500 orders. Overview totals and sales charts
+          include your complete sales history.
+        </p>
+      )}
+      {historyError && (
+        <p role="alert" className="form-error">
+          {historyError}
+        </p>
+      )}
       <div className="mini-stats">
         <div>
           <span>
@@ -170,6 +218,30 @@ export function Orders({ delivery = false }: { delivery?: boolean }) {
           />
         )}
       </Panel>
+      {online && history && (
+        <div className="pagination">
+          <span>
+            {history.total} records · Page {page} of{" "}
+            {Math.max(1, Math.ceil(history.total / 25))}
+          </span>
+          <div>
+            <button
+              className="button small"
+              disabled={page === 1}
+              onClick={() => setPage(page - 1)}
+            >
+              Previous
+            </button>
+            <button
+              className="button small"
+              disabled={page * 25 >= history.total}
+              onClick={() => setPage(page + 1)}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
       {current && (
         <Modal title={current.number} onClose={() => setSelected(null)}>
           <div className="detail-overview">

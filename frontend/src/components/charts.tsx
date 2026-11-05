@@ -1,15 +1,27 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Order } from "@/lib/types";
 import { money } from "@/lib/format";
 export function SalesChart({
   orders,
   days = 7,
+  series,
 }: {
   orders: Order[];
   days?: number;
+  series?: { day: string; totalMinor: number }[];
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(780);
+  useEffect(() => {
+    const observer = new ResizeObserver((entries) =>
+      setWidth(entries[0].contentRect.width),
+    );
+    if (chartRef.current) observer.observe(chartRef.current);
+    return () => observer.disconnect();
+  }, []);
+  const textSize = Math.max(14, (14 * 780) / Math.max(width, 1));
   const points = Array.from({ length: days }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (days - 1 - i));
@@ -22,16 +34,18 @@ export function SalesChart({
         day: "2-digit",
         month: "short",
       }),
-      sales: orders
-        .filter(
-          (o) =>
-            o.status === "DELIVERED" &&
-            o.delivery?.deliveredAt &&
-            new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dhaka" }).format(
-              new Date(o.delivery.deliveredAt),
-            ) === key,
-        )
-        .reduce((s, o) => s + (o.delivery?.invoice?.totalMinor || 0), 0),
+      sales: series
+        ? series.find((p) => p.day === key)?.totalMinor || 0
+        : orders
+            .filter(
+              (o) =>
+                o.status === "DELIVERED" &&
+                o.delivery?.deliveredAt &&
+                new Intl.DateTimeFormat("en-CA", {
+                  timeZone: "Asia/Dhaka",
+                }).format(new Date(o.delivery.deliveredAt)) === key,
+            )
+            .reduce((s, o) => s + (o.delivery?.invoice?.totalMinor || 0), 0),
     };
   });
   const max = Math.max(...points.map((p) => p.sales), 10000) * 1.15;
@@ -41,7 +55,7 @@ export function SalesChart({
   ]);
   const line = coords.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join(" ");
   return (
-    <div className="sales-chart">
+    <div className="sales-chart" ref={chartRef}>
       <svg
         viewBox="0 0 780 255"
         role="img"
@@ -63,7 +77,7 @@ export function SalesChart({
               stroke="#edf0ee"
               strokeDasharray="4 5"
             />
-            <text x="0" y={40 + i * 42.5}>
+            <text x="0" y={40 + i * 42.5} style={{ fontSize: textSize }}>
               {money(max * (1 - i / 4), true)}
             </text>
           </g>
@@ -97,8 +111,16 @@ export function SalesChart({
               stroke="white"
               strokeWidth="2"
             />
-            {(days === 7 || i % 5 === 0 || i === days - 1) && (
-              <text x={coords[i][0]} y="238" textAnchor="middle">
+            {((days === 7 && (width >= 500 || i % 3 === 0)) ||
+              (days !== 7 &&
+                i % Math.ceil(days / (width < 500 ? 3 : 6)) === 0) ||
+              i === days - 1) && (
+              <text
+                x={coords[i][0]}
+                y="238"
+                textAnchor="middle"
+                style={{ fontSize: textSize }}
+              >
                 {p.label}
               </text>
             )}

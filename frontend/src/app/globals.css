@@ -2631,3 +2631,166 @@ tbody tr:hover {
     scroll-behavior: auto !important;
   }
 }
+
+/* Keep secondary information readable at the 14px baseline. */
+:root {
+  --muted: #647267;
+}
+.cell-sub,
+.eyebrow,
+.nav-group > p,
+.workspace-switch div > span,
+.user-profile div > span,
+.breadcrumb,
+.global-search,
+.connection,
+.app-footer,
+.stat-top,
+.panel-heading p,
+.chart-total > span,
+.chart-caption,
+.chart-caption > span:first-child,
+.donut span,
+.target-values span,
+.target-note,
+.field-percent span,
+th,
+td,
+.mini-stats span,
+.outlet-address,
+.outlet-card-bottom small,
+.outlet-beat,
+.territory-meta,
+.beat-choice div > span,
+.settings-list dt,
+.settings-list dd,
+.field > span,
+.run-result,
+.search,
+.visit-info .cell-sub,
+.table-toolbar > .muted {
+  color: #647267;
+}
+.sales-chart svg text {
+  fill: #647267;
+}
+.badge {
+  color: #5e7051;
+}
+.badge-delivered,
+.badge-done,
+.badge-paid,
+.badge-reconciled,
+.badge-active,
+.badge-in_stock,
+.badge-productive,
+.badge-order,
+.badge-approved {
+  color: #4e7134;
+}
+.badge-submitted,
+.badge-posted,
+.badge-pending,
+.badge-planned,
+.badge-confirmed,
+.badge-general,
+.badge-bkash {
+  color: #4f6e92;
+}
+.badge-allocated,
+.badge-dispatched,
+.badge-calculated,
+.badge-pharmacy,
+.badge-nagad {
+  color: #7b5f99;
+}
+.badge-pending_approval,
+.badge-low_stock,
+.badge-partial,
+.badge-needs_attention,
+.badge-gps_flagged {
+  color: #8c691f;
+}
+.badge-cancelled,
+.badge-bounced,
+.badge-rejected,
+.badge-out_of_stock {
+  color: #a4574e;
+}
+.target-note,
+.overview-banner p,
+.stock-alert p {
+  color: #697750;
+}
+.stock-alert strong,
+.warning {
+  color: #88661f !important;
+}
+.admin-tools {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 23px;
+}
+.scheme-card > p,
+.scheme-dates,
+.scheme-card > .cell-sub,
+.empty p,
+.empty h3,
+.account-details p {
+  color: #647267;
+}
+.callout {
+  color: #5f7350;
+}
+.callout.warning {
+  color: #88661f;
+}
+.segmented button {
+  color: #647267;
+}
+.login-foot {
+  color: #b2c9ac;
+}
+.avatar,
+.top-avatar {
+  color: #795a32;
+}
+.overview-banner p {
+  color: #5c6e45;
+}
+.field-numbers strong > span {
+  color: #68765e;
+}
+.notification-button {
+  position: relative;
+}
+.notification-dot {
+  position: absolute;
+  right: 6px;
+  top: 5px;
+  width: 6px;
+  height: 6px;
+  background: #a17b35;
+  border: 1px solid white;
+  border-radius: 50%;
+}
+.notification-panel .panel-heading {
+  padding: 0 0 10px;
+}
+.notification-panel .search-links {
+  max-height: 370px;
+  overflow: auto;
+}
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 17px 0;
+  color: #647267;
+}
+.pagination > div {
+  display: flex;
+  gap: 8px;
+}

@@ -136,6 +136,15 @@ export type Run = {
   }[];
 };
 export type Snapshot = {
+  metrics: {
+    salesMinor: number;
+    monthlySalesMinor: number;
+    collectedMinor: number;
+    orderCount: number;
+    pendingCount: number;
+  };
+  salesSeries: { day: string; totalMinor: number }[];
+  historyLimited: boolean;
   outlets: Outlet[];
   orders: Order[];
   stock: {

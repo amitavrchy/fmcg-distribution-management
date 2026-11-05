@@ -2,7 +2,8 @@ export const money = (minor: number, compact = false) =>
   new Intl.NumberFormat("en-BD", {
     style: "currency",
     currency: "BDT",
-    maximumFractionDigits: compact ? 1 : 0,
+    maximumFractionDigits: compact ? 1 : 2,
+    minimumFractionDigits: 0,
     ...(compact ? { notation: "compact" as const } : {}),
   }).format(minor / 100);
 export const number = (n: number) => new Intl.NumberFormat("en-BD").format(n);
