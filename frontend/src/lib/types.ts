@@ -1,4 +1,5 @@
 export type Actor = {
+  active?: boolean;
   id: string;
   email: string;
   fullName: string;
@@ -14,6 +15,8 @@ export type Beat = {
   territory: { name: string };
 };
 export type Outlet = {
+  segment: string;
+  paymentTermsDays: number;
   id: string;
   name: string;
   code: string;
@@ -28,6 +31,8 @@ export type Outlet = {
   lng: number | null;
 };
 export type Sku = {
+  weightGrams: number;
+  barcode: string | null;
   id: string;
   name: string;
   code: string;
@@ -42,6 +47,7 @@ export type Invoice = {
   outletId: string;
   totalMinor: number;
   paidMinor: number;
+  creditedMinor: number;
   status: string;
   createdAt: string;
 };

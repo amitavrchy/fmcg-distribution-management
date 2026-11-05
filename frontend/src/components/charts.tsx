@@ -49,9 +49,12 @@ export function SalesChart({
     };
   });
   const max = Math.max(...points.map((p) => p.sales), 10000) * 1.15;
+  const min = Math.min(0, ...points.map((p) => p.sales)) * 1.15;
+  const chartLeft = width < 500 ? 180 : 100;
+  const baseline = 205 - ((0 - min) / (max - min)) * 170;
   const coords = points.map((p, i) => [
-    60 + (i * 680) / (days - 1),
-    205 - (p.sales / max) * 170,
+    chartLeft + (i * (740 - chartLeft)) / (days - 1),
+    205 - ((p.sales - min) / (max - min)) * 170,
   ]);
   const line = coords.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join(" ");
   return (
@@ -70,7 +73,7 @@ export function SalesChart({
         {[0, 1, 2, 3, 4].map((i) => (
           <g key={i}>
             <line
-              x1="60"
+              x1={chartLeft}
               x2="740"
               y1={35 + i * 42.5}
               y2={35 + i * 42.5}
@@ -78,11 +81,14 @@ export function SalesChart({
               strokeDasharray="4 5"
             />
             <text x="0" y={40 + i * 42.5} style={{ fontSize: textSize }}>
-              {money(max * (1 - i / 4), true)}
+              {money(max - ((max - min) * i) / 4, true)}
             </text>
           </g>
         ))}
-        <path d={`${line} L740,205 L60,205 Z`} fill="url(#sales-fill)" />
+        <path
+          d={`${line} L740,${baseline} L${chartLeft},${baseline} Z`}
+          fill="url(#sales-fill)"
+        />
         <path
           d={line}
           fill="none"

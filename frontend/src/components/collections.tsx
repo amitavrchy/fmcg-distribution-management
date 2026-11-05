@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { useApp } from "./provider";
 import { Badge, Empty, Field, Modal, Panel, SearchBox, SimpleForm } from "./ui";
-import { money, date } from "@/lib/format";
+import { money, date, due } from "@/lib/format";
 import { enqueue } from "@/lib/offline";
 import { api } from "@/lib/api";
 export function Collections({
@@ -46,9 +46,7 @@ export function Collections({
         <div>
           <span>Outstanding invoices</span>
           <strong>
-            {money(
-              data.invoices.reduce((s, i) => s + i.totalMinor - i.paidMinor, 0),
-            )}
+            {money(data.invoices.reduce((s, i) => s + due(i), 0))}
           </strong>
         </div>
         <div>
@@ -165,6 +163,7 @@ export function Collections({
                 amountMinor: Math.round(Number(f.get("amount")) * 100),
                 method: f.get("method"),
                 reference: f.get("reference"),
+                collectedAt: new Date().toISOString(),
               };
               if (!online) {
                 await enqueue({
@@ -189,7 +188,7 @@ export function Collections({
                     {money(
                       data.invoices
                         .filter((i) => i.outletId === o.id)
-                        .reduce((s, i) => s + i.totalMinor - i.paidMinor, 0),
+                        .reduce((s, i) => s + due(i), 0),
                     )}
                   </option>
                 ))}

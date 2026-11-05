@@ -6,6 +6,8 @@ import { Badge, Panel, Empty } from "./ui";
 import { date, label } from "@/lib/format";
 import { api } from "@/lib/api";
 import { exportCsv } from "@/lib/export";
+import { Field, Modal, SimpleForm } from "./ui";
+import { DataHub } from "./data-hub";
 type Audit = {
   id: string;
   actorId: string;
@@ -14,6 +16,7 @@ type Audit = {
   createdAt: string;
 };
 export function Settings() {
+  const [passwordForm, setPasswordForm] = useState(false);
   const { user, data, notify } = useApp(),
     [audit, setAudit] = useState<Audit[] | null>(null);
   return (
@@ -58,6 +61,11 @@ export function Settings() {
           <h3>{user.fullName}</h3>
           <p>{user.email}</p>
           <Badge value={user.role} />
+          <div style={{ marginTop: 20 }}>
+            <button className="button" onClick={() => setPasswordForm(true)}>
+              Change password
+            </button>
+          </div>
         </div>
       </Panel>
       <Panel
@@ -150,6 +158,41 @@ export function Settings() {
           </div>
         )}
       </Panel>
+      {passwordForm && (
+        <Modal title="Change password" onClose={() => setPasswordForm(false)}>
+          <SimpleForm
+            submit="Update password & revoke other sessions"
+            onSubmit={async (f) => {
+              await api("auth/password", {
+                currentPassword: f.get("current"),
+                newPassword: f.get("next"),
+              });
+              setPasswordForm(false);
+              notify("Password updated. Other sessions have been revoked.");
+            }}
+          >
+            <Field label="Current password">
+              <input
+                name="current"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+            </Field>
+            <Field label="New password (12+ characters)">
+              <input
+                name="next"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={128}
+                required
+              />
+            </Field>
+          </SimpleForm>
+        </Modal>
+      )}
+      <DataHub />
     </div>
   );
 }

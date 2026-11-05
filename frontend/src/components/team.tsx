@@ -4,6 +4,7 @@ import { useApp } from "./provider";
 import { Badge, Field, Modal, Panel, SimpleForm } from "./ui";
 import { initials } from "@/lib/format";
 import { AdminTools } from "./admin-tools";
+import { useState } from "react";
 export function Team({
   create,
   onCreated,
@@ -11,7 +12,9 @@ export function Team({
   create: boolean;
   onCreated: () => void;
 }) {
-  const { data, mutate } = useApp();
+  const { data, mutate, user } = useApp();
+  const [memberId, setMember] = useState<string | null>(null),
+    member = data.users.find((u) => u.id === memberId);
   return (
     <>
       <AdminTools />
@@ -48,6 +51,7 @@ export function Team({
                 <th>Email</th>
                 <th>Role</th>
                 <th>Territory</th>
+                {user.role === "COMPANY_ADMIN" && <th>Access controls</th>}
               </tr>
             </thead>
             <tbody>
@@ -62,11 +66,26 @@ export function Team({
                   <td>{u.email}</td>
                   <td>
                     <Badge value={u.role} />
+                    {u.active === false && (
+                      <span className="cell-sub">
+                        <Badge value="DISABLED" />
+                      </span>
+                    )}
                   </td>
                   <td>
                     {data.territories.find((t) => t.id === u.territoryId)
                       ?.name || "Company-wide"}
                   </td>
+                  {user.role === "COMPANY_ADMIN" && (
+                    <td>
+                      <button
+                        className="button small"
+                        onClick={() => setMember(u.id)}
+                      >
+                        Manage access
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -118,6 +137,81 @@ export function Team({
                 {data.territories.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </SimpleForm>
+        </Modal>
+      )}
+      {member && (
+        <Modal
+          title={`Manage access · ${member.fullName}`}
+          onClose={() => setMember(null)}
+        >
+          <p className="modal-description">
+            Changing access revokes existing sessions. The last active company
+            administrator is protected.
+          </p>
+          <SimpleForm
+            onSubmit={async (f) => {
+              await mutate(
+                `admin/users/${member.id}`,
+                {
+                  active: f.get("active") === "true",
+                  role: f.get("role"),
+                  territoryId: f.get("territoryId"),
+                  distributorId: f.get("distributorId") || null,
+                },
+                "PATCH",
+              );
+              setMember(null);
+            }}
+          >
+            <Field label="Role">
+              <select name="role" defaultValue={member.role}>
+                {[
+                  "COMPANY_ADMIN",
+                  "AREA_MANAGER",
+                  "DISTRIBUTOR",
+                  "SR",
+                  "ACCOUNTS",
+                ].map((r) => (
+                  <option key={r}>{r}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Account state">
+              <select
+                name="active"
+                defaultValue={member.active === false ? "false" : "true"}
+              >
+                <option value="true">Active</option>
+                <option value="false">Disabled</option>
+              </select>
+            </Field>
+            <Field label="Territory">
+              <select
+                name="territoryId"
+                defaultValue={member.territoryId || data.territories[0]?.id}
+                required
+              >
+                {data.territories.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Distributor (distributor role only)">
+              <select
+                name="distributorId"
+                defaultValue={member.distributorId || ""}
+              >
+                <option value="">No distributor</option>
+                {data.distributors.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
                   </option>
                 ))}
               </select>

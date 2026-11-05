@@ -34,3 +34,8 @@ export const initials = (s: string) =>
     .slice(0, 2)
     .map((w) => w[0])
     .join("");
+export const due = (i: {
+  totalMinor: number;
+  paidMinor: number;
+  creditedMinor?: number;
+}) => Math.max(0, i.totalMinor - i.paidMinor - (i.creditedMinor || 0));

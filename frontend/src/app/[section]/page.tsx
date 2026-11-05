@@ -8,6 +8,16 @@ export default async function Page({
   const { section } = await params;
   if (
     ![
+      "overview",
+      "control",
+      "procurement",
+      "warehouses",
+      "finance",
+      "returns",
+      "logistics",
+      "field",
+      "analytics",
+      "approvals",
       "orders",
       "deliveries",
       "outlets",

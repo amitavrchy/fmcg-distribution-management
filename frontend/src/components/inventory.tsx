@@ -20,7 +20,7 @@ export function Inventory({
     [ledger, setLedger] = useState(false);
   const skus = data.skus.filter(
     (s) =>
-      `${s.name} ${s.code} ${s.category}`
+      `${s.name} ${s.code} ${s.category} ${s.barcode || ""}`
         .toLowerCase()
         .includes(q.toLowerCase()) &&
       (filter === "ALL" ||

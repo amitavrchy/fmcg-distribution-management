@@ -24,11 +24,32 @@ import {
   Check,
   Command,
   Bell,
+  Radar,
+  Building2,
+  ShoppingCart,
+  ClipboardCheck,
+  BarChart3,
+  Route,
+  ShieldCheck,
 } from "lucide-react";
 import { useApp } from "./provider";
-import { initials, label } from "@/lib/format";
+import { initials, label, due } from "@/lib/format";
 import type { LucideIcon } from "lucide-react";
 const nav: { group: string; items: [string, string, LucideIcon][] }[] = [
+  {
+    group: "OPERATIONS CENTER",
+    items: [
+      ["control", "Control tower", Radar],
+      ["approvals", "Approval inbox", ShieldCheck],
+      ["procurement", "Procurement", ShoppingCart],
+      ["warehouses", "Warehouse operations", Building2],
+      ["logistics", "Delivery control", Route],
+      ["finance", "Finance & settlement", Wallet],
+      ["returns", "Returns & credit notes", RotateCcw],
+      ["field", "Field execution & CRM", ClipboardCheck],
+      ["analytics", "Planning & intelligence", BarChart3],
+    ],
+  },
   {
     group: "WORKSPACE",
     items: [
@@ -75,7 +96,7 @@ export function Shell({
     ...data.invoices
       .filter(
         (i) =>
-          i.totalMinor > i.paidMinor &&
+          due(i) > 0 &&
           Date.now() - new Date(i.createdAt).getTime() > 30 * 86400000,
       )
       .map((i) => ({
@@ -123,26 +144,40 @@ export function Shell({
           {nav.map((group) => (
             <div className="nav-group" key={group.group}>
               <p>{group.group}</p>
-              {group.items.map(([id, text, Icon]) => (
-                <Link
-                  key={id}
-                  href={id === "overview" ? "/" : `/${id}`}
-                  onClick={() => setOpen(false)}
-                  aria-current={section === id ? "page" : undefined}
-                  className={`nav-item ${section === id ? "active" : ""}`}
-                >
-                  <Icon size={19} />
-                  <span>{text}</span>
-                  {id === "orders" && (
-                    <span className="nav-count">
-                      {
-                        data.orders.filter((o) => o.status === "SUBMITTED")
-                          .length
-                      }
-                    </span>
-                  )}
-                </Link>
-              ))}
+              {group.items
+                .filter(
+                  ([id]) =>
+                    !(
+                      ["procurement", "warehouses", "approvals"].includes(id) &&
+                      user.role === "SR"
+                    ) &&
+                    !(
+                      id === "field" &&
+                      !["COMPANY_ADMIN", "AREA_MANAGER", "SR"].includes(
+                        user.role,
+                      )
+                    ),
+                )
+                .map(([id, text, Icon]) => (
+                  <Link
+                    key={id}
+                    href={id === "control" ? "/" : `/${id}`}
+                    onClick={() => setOpen(false)}
+                    aria-current={section === id ? "page" : undefined}
+                    className={`nav-item ${section === id ? "active" : ""}`}
+                  >
+                    <Icon size={19} />
+                    <span>{text}</span>
+                    {id === "orders" && (
+                      <span className="nav-count">
+                        {
+                          data.orders.filter((o) => o.status === "SUBMITTED")
+                            .length
+                        }
+                      </span>
+                    )}
+                  </Link>
+                ))}
             </div>
           ))}
         </nav>

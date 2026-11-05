@@ -16,10 +16,57 @@ import { Claims } from "./claims";
 import { Team } from "./team";
 import { SyncCenter } from "./sync-center";
 import { Settings } from "./settings";
+import { EnterpriseWorkspace, enterpriseSections } from "./enterprise";
 const meta: Record<
   string,
   { title: string; description: string; action?: string; roles?: string[] }
 > = {
+  control: {
+    title: "Control tower",
+    description:
+      "Supply, inventory, field execution and finance. One connected operating picture.",
+    action: "New order",
+    roles: ["COMPANY_ADMIN", "AREA_MANAGER", "SR"],
+  },
+  procurement: {
+    title: "Procurement",
+    description:
+      "From supply commitment to warehouse receipt and supplier settlement.",
+  },
+  warehouses: {
+    title: "Warehouse operations",
+    description: "Batch-level visibility. Safer stock. Accountable movements.",
+  },
+  finance: {
+    title: "Finance & settlement",
+    description:
+      "Understand exposure, control expenses and close the cash cycle.",
+  },
+  returns: {
+    title: "Returns & credit notes",
+    description:
+      "From physical recovery to customer credit and refund settlement.",
+  },
+  logistics: {
+    title: "Delivery control",
+    description:
+      "Capacity-aware trip planning, stop execution and proof of delivery.",
+  },
+  field: {
+    title: "Field execution & CRM",
+    description:
+      "Merchandising, audits, outlet follow-ups and sales opportunities.",
+  },
+  analytics: {
+    title: "Planning & intelligence",
+    description:
+      "Turn delivered demand into actionable stock and purchase decisions.",
+  },
+  approvals: {
+    title: "Approval inbox",
+    description:
+      "Review financial and inventory exceptions across your operation.",
+  },
   orders: {
     title: "Orders",
     description: "From first order to the last mile. Keep every sale moving.",
@@ -115,7 +162,9 @@ function Content({ section }: { section: string }) {
               <button
                 className="button primary"
                 onClick={() =>
-                  section === "orders" ? setOrder(true) : setCreate(true)
+                  ["orders", "control"].includes(section)
+                    ? setOrder(true)
+                    : setCreate(true)
                 }
               >
                 <Plus size={18} />
@@ -136,6 +185,9 @@ function Content({ section }: { section: string }) {
           {section === "team" && <Team {...props} />}
           {section === "sync" && <SyncCenter />}
           {section === "settings" && <Settings />}
+          {enterpriseSections.includes(section) && (
+            <EnterpriseWorkspace section={section} />
+          )}
         </>
       )}
       {order && <OrderComposer onClose={() => setOrder(false)} />}

@@ -5,13 +5,17 @@ import { Field, Modal, SimpleForm } from "./ui";
 export function AdminTools({ pricing = false }: { pricing?: boolean }) {
   const { user, data, mutate } = useApp(),
     [mode, setMode] = useState(""),
-    [role, setRole] = useState("SR");
+    [role, setRole] = useState("SR"),
+    [metadataSku, setMetadataSku] = useState(data.skus[0]?.id || "");
   if (user.role !== "COMPANY_ADMIN") return null;
   return (
     <>
       <div className="admin-tools">
         {(pricing
-          ? [["prices", "Update trade price"]]
+          ? [
+              ["prices", "Update trade price"],
+              ["sku-metadata", "Product logistics & barcode"],
+            ]
           : [
               ["users", "Add team member"],
               ["territories", "Create territory"],
@@ -29,7 +33,9 @@ export function AdminTools({ pricing = false }: { pricing?: boolean }) {
               ? "Add team member"
               : mode === "territories"
                 ? "Create territory"
-                : "Publish trade price"
+                : mode === "sku-metadata"
+                  ? "Product logistics & barcode"
+                  : "Publish trade price"
           }
           onClose={() => setMode("")}
         >
@@ -54,10 +60,17 @@ export function AdminTools({ pricing = false }: { pricing?: boolean }) {
                         area: f.get("area"),
                         name: f.get("name"),
                       }
-                    : {
-                        skuId: f.get("skuId"),
-                        priceMinor: Math.round(Number(f.get("price")) * 100),
-                      };
+                    : mode === "sku-metadata"
+                      ? {
+                          skuId: f.get("skuId"),
+                          weightGrams: Number(f.get("weight")),
+                          reorderLevel: Number(f.get("reorder")),
+                          barcode: f.get("barcode"),
+                        }
+                      : {
+                          skuId: f.get("skuId"),
+                          priceMinor: Math.round(Number(f.get("price")) * 100),
+                        };
               await mutate(`admin/${mode}`, body);
               setMode("");
             }}
@@ -131,12 +144,24 @@ export function AdminTools({ pricing = false }: { pricing?: boolean }) {
               </>
             ) : (
               <>
-                <p className="callout">
-                  Publishing creates a new price list version. Unsynced orders
-                  with the previous version will require review.
-                </p>
+                {mode === "prices" && (
+                  <p className="callout">
+                    Publishing creates a new price list version. Unsynced orders
+                    with the previous version will require review.
+                  </p>
+                )}
                 <Field label="Product">
-                  <select name="skuId" required>
+                  <select
+                    name="skuId"
+                    required
+                    {...(mode === "sku-metadata"
+                      ? {
+                          value: metadataSku,
+                          onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
+                            setMetadataSku(e.target.value),
+                        }
+                      : {})}
+                  >
                     {data.skus.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
@@ -144,16 +169,60 @@ export function AdminTools({ pricing = false }: { pricing?: boolean }) {
                     ))}
                   </select>
                 </Field>
-                <Field label="New trade price (BDT)">
-                  <input
-                    name="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="20000000"
-                    required
-                  />
-                </Field>
+                {mode === "sku-metadata" ? (
+                  <>
+                    <Field label="Unit weight (grams)">
+                      <input
+                        key={`weight-${metadataSku}`}
+                        name="weight"
+                        type="number"
+                        min="1"
+                        max="1000000"
+                        required
+                        defaultValue={
+                          data.skus.find((s) => s.id === metadataSku)
+                            ?.weightGrams || 500
+                        }
+                      />
+                    </Field>
+                    <Field label="Reorder threshold (units)">
+                      <input
+                        key={`reorder-${metadataSku}`}
+                        name="reorder"
+                        type="number"
+                        min="0"
+                        max="1000000"
+                        defaultValue={
+                          data.skus.find((s) => s.id === metadataSku)
+                            ?.reorderLevel ?? 50
+                        }
+                        required
+                      />
+                    </Field>
+                    <Field label="Barcode (optional)">
+                      <input
+                        key={`barcode-${metadataSku}`}
+                        name="barcode"
+                        maxLength={50}
+                        defaultValue={
+                          data.skus.find((s) => s.id === metadataSku)
+                            ?.barcode || ""
+                        }
+                      />
+                    </Field>
+                  </>
+                ) : (
+                  <Field label="New trade price (BDT)">
+                    <input
+                      name="price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="20000000"
+                      required
+                    />
+                  </Field>
+                )}
               </>
             )}
           </SimpleForm>

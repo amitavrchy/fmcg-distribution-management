@@ -15,7 +15,7 @@ import {
   Download,
 } from "lucide-react";
 import { useApp } from "./provider";
-import { money, number, date } from "@/lib/format";
+import { money, number, date, due } from "@/lib/format";
 import { Panel, Badge, Progress } from "./ui";
 import { SalesChart, Donut } from "./charts";
 import { exportCsv } from "@/lib/export";
@@ -24,10 +24,7 @@ export function Overview({ newOrder }: { newOrder: () => void }) {
     [range, setRange] = useState(7);
   const sales = data.metrics.salesMinor;
   const collected = data.metrics.collectedMinor;
-  const outstanding = data.invoices.reduce(
-    (s, i) => s + i.totalMinor - i.paidMinor,
-    0,
-  );
+  const outstanding = data.invoices.reduce((s, i) => s + due(i), 0);
   const low = data.stock.filter((s) => s.qty < s.sku.reorderLevel);
   const monthly = data.metrics.monthlySalesMinor;
   const target = data.targets

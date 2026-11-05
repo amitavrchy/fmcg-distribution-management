@@ -3,7 +3,7 @@ import { useState } from "react";
 import { MapPin, Phone, Store, ArrowUpRight } from "lucide-react";
 import { useApp } from "./provider";
 import { Empty, Field, Modal, Panel, SearchBox, SimpleForm, Badge } from "./ui";
-import { money } from "@/lib/format";
+import { money, due as invoiceBalance } from "@/lib/format";
 export function Outlets({
   create,
   onCreated,
@@ -50,7 +50,7 @@ export function Outlets({
         {outlets.map((o) => {
           const due = data.invoices
             .filter((i) => i.outletId === o.id)
-            .reduce((s, i) => s + i.totalMinor - i.paidMinor, 0);
+            .reduce((s, i) => s + invoiceBalance(i), 0);
           return (
             <button
               className="outlet-card"
@@ -176,7 +176,7 @@ export function Outlets({
                 {money(
                   data.invoices
                     .filter((i) => i.outletId === item.id)
-                    .reduce((s, i) => s + i.totalMinor - i.paidMinor, 0),
+                    .reduce((s, i) => s + invoiceBalance(i), 0),
                 )}
               </strong>
             </div>
@@ -190,6 +190,10 @@ export function Outlets({
                   {
                     beatId: f.get("beatId"),
                     creditLimitMinor: Math.round(Number(f.get("credit")) * 100),
+                    paymentTermsDays: Number(f.get("terms")),
+                    segment: f.get("segment"),
+                    ...(f.get("lat") ? { lat: Number(f.get("lat")) } : {}),
+                    ...(f.get("lng") ? { lng: Number(f.get("lng")) } : {}),
                   },
                   "PATCH",
                 );
@@ -213,6 +217,46 @@ export function Outlets({
                   max="20000000"
                   defaultValue={item.creditLimitMinor / 100}
                   required
+                />
+              </Field>
+              <Field label="Payment terms (days)">
+                <input
+                  name="terms"
+                  type="number"
+                  min="0"
+                  max="365"
+                  defaultValue={item.paymentTermsDays ?? 30}
+                  required
+                />
+              </Field>
+              <Field label="Account segment">
+                <select
+                  name="segment"
+                  defaultValue={item.segment || "STANDARD"}
+                >
+                  {["STANDARD", "KEY_ACCOUNT", "GROWTH", "AT_RISK"].map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Latitude">
+                <input
+                  name="lat"
+                  type="number"
+                  min="-90"
+                  max="90"
+                  step="any"
+                  defaultValue={item.lat ?? ""}
+                />
+              </Field>
+              <Field label="Longitude">
+                <input
+                  name="lng"
+                  type="number"
+                  min="-180"
+                  max="180"
+                  step="any"
+                  defaultValue={item.lng ?? ""}
                 />
               </Field>
             </SimpleForm>
